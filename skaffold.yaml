@@ -1,0 +1,194 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: ecommerce-local
+
+# Build configuration
+build:
+  # Use local Docker daemon
+  local:
+    push: false
+    useBuildkit: true
+    concurrency: 4
+
+  # Define all service artifacts
+  artifacts:
+    # Frontend - Next.js
+    - image: ecommerce/fe-nextjs
+      context: ../fe-nextjs
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: 'src/**/*.tsx'
+            dest: /app
+          - src: 'src/**/*.ts'
+            dest: /app
+          - src: 'src/**/*.css'
+            dest: /app
+
+    # API Gateway - Gin
+    - image: ecommerce/be-api-gin
+      context: ../be-api-gin
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: '**/*.go'
+            dest: /app
+
+    # User Service - Django
+    - image: ecommerce/svc-user-django
+      context: ../svc-user-django
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: '**/*.py'
+            dest: /app
+
+    # Listing Service - Spring Boot
+    - image: ecommerce/svc-listing-spring
+      context: ../svc-listing-spring
+      docker:
+        dockerfile: Dockerfile
+      # Spring Boot requires full rebuild
+
+    # Inventory Service - Rails
+    - image: ecommerce/svc-inventory-rails
+      context: ../svc-inventory-rails
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: 'app/**/*.rb'
+            dest: /rails
+          - src: 'config/**/*.rb'
+            dest: /rails
+
+# Deployment manifests
+manifests:
+  rawYaml:
+    - k8s/namespace.yaml
+    - k8s/configmap.yaml
+    - k8s/secrets.yaml
+    - k8s/postgres/*.yaml
+    - k8s/redis/*.yaml
+    - k8s/fe-nextjs/*.yaml
+    - k8s/be-api-gin/*.yaml
+    - k8s/svc-user-django/*.yaml
+    - k8s/svc-listing-spring/*.yaml
+    - k8s/svc-inventory-rails/*.yaml
+
+# Deploy configuration
+deploy:
+  kubectl:
+    defaultNamespace: ecommerce
+    hooks:
+      before:
+        - host:
+            command: ["sh", "-c", "kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -"]
+
+# Port forwarding for local development
+portForward:
+  - resourceType: service
+    resourceName: fe-nextjs
+    namespace: ecommerce
+    port: 3000
+    localPort: 3000
+
+  - resourceType: service
+    resourceName: be-api-gin
+    namespace: ecommerce
+    port: 8080
+    localPort: 8080
+
+  - resourceType: service
+    resourceName: postgres
+    namespace: ecommerce
+    port: 5432
+    localPort: 5432
+
+  - resourceType: service
+    resourceName: redis
+    namespace: ecommerce
+    port: 6379
+    localPort: 6379
+
+  - resourceType: service
+    resourceName: svc-user-django
+    namespace: ecommerce
+    port: 8000
+    localPort: 8001
+
+  - resourceType: service
+    resourceName: svc-listing-spring
+    namespace: ecommerce
+    port: 8080
+    localPort: 8082
+
+  - resourceType: service
+    resourceName: svc-inventory-rails
+    namespace: ecommerce
+    port: 3000
+    localPort: 3001
+
+# Profiles for different environments
+profiles:
+  # Development profile with hot reload
+  - name: dev
+    activation:
+      - command: dev
+    build:
+      local:
+        push: false
+    deploy:
+      kubectl:
+        flags:
+          global:
+            - --validate=false
+
+  # CI/CD profile
+  - name: ci
+    build:
+      local:
+        push: false
+        tryImportMissing: true
+
+  # Production-like profile
+  - name: prod
+    build:
+      local:
+        push: true
+    manifests:
+      rawYaml:
+        - k8s/namespace.yaml
+        - k8s/configmap.yaml
+        - k8s/secrets.yaml
+        - k8s/postgres/*.yaml
+        - k8s/redis/*.yaml
+        - k8s/fe-nextjs/*.yaml
+        - k8s/be-api-gin/*.yaml
+        - k8s/svc-user-django/*.yaml
+        - k8s/svc-listing-spring/*.yaml
+        - k8s/svc-inventory-rails/*.yaml
+
+# Custom actions
+customActions:
+  - name: db-migrate
+    containers:
+      - name: migrate-django
+        image: ecommerce/svc-user-django
+        command: ["python", "manage.py", "migrate"]
+      - name: migrate-rails
+        image: ecommerce/svc-inventory-rails
+        command: ["rails", "db:migrate"]
+
+  - name: db-seed
+    containers:
+      - name: seed-django
+        image: ecommerce/svc-user-django
+        command: ["python", "manage.py", "loaddata", "initial_data"]
+      - name: seed-rails
+        image: ecommerce/svc-inventory-rails
+        command: ["rails", "db:seed"]

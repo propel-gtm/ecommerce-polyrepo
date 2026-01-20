@@ -1,0 +1,226 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # Infrastructure Services
+  # ===========================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ecommerce-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_MULTIPLE_DATABASES: ecommerce,users,listings,inventory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecommerce-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecommerce-network
+
+  # ===========================================
+  # Application Services
+  # ===========================================
+
+  fe-nextjs:
+    build:
+      context: ../fe-nextjs
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-frontend
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ../fe-nextjs:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - be-api-gin
+    networks:
+      - ecommerce-network
+
+  be-api-gin:
+    build:
+      context: ../be-api-gin
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-api-gateway
+    environment:
+      - GIN_MODE=debug
+      - PORT=8080
+      - USER_SERVICE_URL=svc-user-django:50051
+      - LISTING_SERVICE_URL=svc-listing-spring:9090
+      - INVENTORY_SERVICE_URL=svc-inventory-rails:50051
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ecommerce?sslmode=disable
+    volumes:
+      - ../be-api-gin:/app
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ecommerce-network
+
+  svc-user-django:
+    build:
+      context: ../svc-user-django
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-user-service
+    environment:
+      - DEBUG=1
+      - DJANGO_SETTINGS_MODULE=user_service.settings
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/users
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=users
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - ALLOWED_HOSTS=*
+      - GRPC_PORT=50051
+    volumes:
+      - ../svc-user-django:/app
+    ports:
+      - "8001:8000"    # REST API
+      - "50051:50051"  # gRPC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - ecommerce-network
+
+  svc-listing-spring:
+    build:
+      context: ../svc-listing-spring
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-listing-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/listings
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVER_PORT=8080
+      - GRPC_PORT=9090
+    volumes:
+      - ../svc-listing-spring:/app
+      - maven_cache:/root/.m2
+    ports:
+      - "8082:8080"  # REST API
+      - "9090:9090"  # gRPC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ecommerce-network
+
+  svc-inventory-rails:
+    build:
+      context: ../svc-inventory-rails
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-inventory-service
+    environment:
+      - RAILS_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=inventory_development
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY_BASE=dev-secret-key-base-change-in-production
+      - GRPC_PORT=50052
+    volumes:
+      - ../svc-inventory-rails:/rails
+      - bundle_cache:/usr/local/bundle
+    ports:
+      - "3001:3000"   # REST API
+      - "50052:50051" # gRPC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - ecommerce-network
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  ecommerce-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  maven_cache:
+    driver: local
+  bundle_cache:
+    driver: local

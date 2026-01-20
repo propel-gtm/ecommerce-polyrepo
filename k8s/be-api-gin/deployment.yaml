@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: be-api-gin
+  namespace: ecommerce
+  labels:
+    app: be-api-gin
+    app.kubernetes.io/name: be-api-gin
+    app.kubernetes.io/component: api-gateway
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: be-api-gin
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: be-api-gin
+        app.kubernetes.io/name: be-api-gin
+        app.kubernetes.io/component: api-gateway
+    spec:
+      containers:
+        - name: be-api-gin
+          image: ecommerce/be-api-gin:v2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            # Server configuration
+            - name: GIN_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: be-api-gin-config
+                  key: GIN_MODE
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: be-api-gin-config
+                  key: PORT
+            # gRPC Service endpoints
+            - name: USER_SERVICE_GRPC_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: be-api-gin-config
+                  key: USER_SERVICE_GRPC_ADDR
+            - name: LISTING_SERVICE_GRPC_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: be-api-gin-config
+                  key: LISTING_SERVICE_GRPC_ADDR
+            - name: INVENTORY_SERVICE_GRPC_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: be-api-gin-config
+                  key: INVENTORY_SERVICE_GRPC_ADDR
+            # Redis
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: REDIS_PORT
+            # Database
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: be-api-gin-secrets
+                  key: DATABASE_URL
+            # JWT
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: be-api-gin-secrets
+                  key: JWT_SECRET
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always

@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: svc-inventory-rails
+  namespace: ecommerce
+  labels:
+    app: svc-inventory-rails
+    app.kubernetes.io/name: svc-inventory-rails
+    app.kubernetes.io/component: inventory-service
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-inventory-rails
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: svc-inventory-rails
+        app.kubernetes.io/name: svc-inventory-rails
+        app.kubernetes.io/component: inventory-service
+    spec:
+      initContainers:
+        # Wait for PostgreSQL to be ready
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres 5432; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+        # Run database migrations
+        - name: migrate
+          image: ecommerce/svc-inventory-rails
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              bundle exec rails db:create || true
+              bundle exec rails db:migrate
+              bundle exec rails db:schema:dump || true
+          env:
+            - name: RAILS_ENV
+              value: "development"
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_HOST
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_PORT
+            - name: DATABASE_NAME
+              value: "inventory_development"
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: svc-inventory-rails-secrets
+                  key: SECRET_KEY_BASE
+      containers:
+        - name: svc-inventory-rails
+          image: ecommerce/svc-inventory-rails:v4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+          env:
+            # Rails environment
+            - name: RAILS_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-inventory-rails-config
+                  key: RAILS_ENV
+            - name: RAILS_LOG_TO_STDOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-inventory-rails-config
+                  key: RAILS_LOG_TO_STDOUT
+            - name: RAILS_MAX_THREADS
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-inventory-rails-config
+                  key: RAILS_MAX_THREADS
+            - name: WEB_CONCURRENCY
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-inventory-rails-config
+                  key: WEB_CONCURRENCY
+            # Database
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_HOST
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_PORT
+            - name: DATABASE_NAME
+              value: "inventory_development"
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: svc-inventory-rails-secrets
+                  key: DATABASE_URL
+            # Redis
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+            # Secrets
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: svc-inventory-rails-secrets
+                  key: SECRET_KEY_BASE
+            # gRPC
+            - name: GRPC_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-inventory-rails-config
+                  key: GRPC_PORT
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
