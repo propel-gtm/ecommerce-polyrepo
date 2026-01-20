@@ -1,6 +1,6 @@
 # E-Commerce Polyrepo
 
-This is the parent repository that links all microservices and infrastructure components as git subtrees.
+This is the parent repository that links all microservices and infrastructure components as git submodules.
 
 ## Architecture
 
@@ -22,9 +22,9 @@ This e-commerce platform consists of the following components:
 ### Shared
 - **proto-schemas**: Protocol buffer schemas and definitions
 
-## Git Subtree Structure
+## Git Submodule Structure
 
-Each component is maintained as an independent repository and linked here as a git subtree:
+Each component is maintained as an independent repository and linked here as a git submodule:
 
 - `be-api-gin/` → https://github.com/propel-gtm/be-api-gin
 - `fe-nextjs/` → https://github.com/propel-gtm/fe-nextjs
@@ -35,24 +35,66 @@ Each component is maintained as an independent repository and linked here as a g
 - `svc-listing-spring/` → https://github.com/propel-gtm/svc-listing-spring
 - `svc-user-django/` → https://github.com/propel-gtm/svc-user-django
 
-## Working with Subtrees
+## Getting Started
 
-### Pull updates from a subtree
-\`\`\`bash
-git subtree pull --prefix=<directory> <remote-url> main --squash
-\`\`\`
+### Clone the repository with all submodules
+```bash
+git clone --recursive https://github.com/propel-gtm/ecommerce-polyrepo.git
+```
 
-### Push changes to a subtree
-\`\`\`bash
-git subtree push --prefix=<directory> <remote-url> main
-\`\`\`
+Or if you already cloned it without submodules:
+```bash
+git submodule update --init --recursive
+```
 
-### Example: Pull updates from be-api-gin
-\`\`\`bash
-git subtree pull --prefix=be-api-gin https://github.com/propel-gtm/be-api-gin.git main --squash
-\`\`\`
+## Working with Submodules
 
-### Example: Push changes to fe-nextjs
-\`\`\`bash
-git subtree push --prefix=fe-nextjs https://github.com/propel-gtm/fe-nextjs.git main
-\`\`\`
+### Update all submodules to latest commits
+```bash
+git submodule update --remote
+```
+
+### Update a specific submodule
+```bash
+git submodule update --remote be-api-gin
+```
+
+### Pull latest changes from all submodules
+```bash
+git pull --recurse-submodules
+```
+
+### Making changes in a submodule
+
+1. Navigate to the submodule directory:
+```bash
+cd be-api-gin
+```
+
+2. Make your changes and commit them:
+```bash
+git add .
+git commit -m "Your changes"
+git push origin main
+```
+
+3. Update the parent repo to point to the new commit:
+```bash
+cd ..
+git add be-api-gin
+git commit -m "Update be-api-gin submodule"
+git push
+```
+
+### Clone a specific submodule only
+If you only want to work on a specific component, you can clone its individual repository:
+```bash
+git clone https://github.com/propel-gtm/be-api-gin.git
+```
+
+## Benefits of Submodules
+
+- **Independent Development**: Each service can be developed, tested, and deployed independently
+- **Version Control**: Parent repo tracks specific commits of each submodule
+- **Flexible Workflows**: Work on individual repos or the full system
+- **Clean Separation**: Clear boundaries between components
