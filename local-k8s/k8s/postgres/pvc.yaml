@@ -1,0 +1,61 @@
+# Note: The StatefulSet uses volumeClaimTemplates for dynamic provisioning
+# This file provides a standalone PVC for scenarios where you need
+# to pre-create the volume or use a specific storage class
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: ecommerce
+  labels:
+    app: postgres
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Optional: PersistentVolume for local development with hostPath
+# Use this when Minikube's default storage class isn't suitable
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv-local
+  labels:
+    app: postgres
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /data/postgres
+    type: DirectoryOrCreate
+---
+# PVC that uses the manual storage class (optional)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc-local
+  namespace: ecommerce
+  labels:
+    app: postgres
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  selector:
+    matchLabels:
+      app: postgres
+      type: local

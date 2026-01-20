@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: ecommerce
+  labels:
+    app: postgres
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/component: database
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_DB
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - ecommerce
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - ecommerce
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: postgres-init
+          configMap:
+            name: postgres-init-scripts
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 5Gi
+---
+# Init scripts ConfigMap for creating multiple databases
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: ecommerce
+  labels:
+    app: postgres
+data:
+  init-databases.sh: |
+    #!/bin/bash
+    set -e
+
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        -- Create databases for each service
+        CREATE DATABASE users;
+        CREATE DATABASE listings;
+        CREATE DATABASE inventory;
+
+        -- Grant privileges
+        GRANT ALL PRIVILEGES ON DATABASE users TO $POSTGRES_USER;
+        GRANT ALL PRIVILEGES ON DATABASE listings TO $POSTGRES_USER;
+        GRANT ALL PRIVILEGES ON DATABASE inventory TO $POSTGRES_USER;
+
+        -- Create extensions
+        \c users
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+        \c listings
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+        \c inventory
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+        \c ecommerce
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    EOSQL

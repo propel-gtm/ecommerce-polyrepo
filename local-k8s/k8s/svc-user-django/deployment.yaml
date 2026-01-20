@@ -1,0 +1,216 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: svc-user-django
+  namespace: ecommerce
+  labels:
+    app: svc-user-django
+    app.kubernetes.io/name: svc-user-django
+    app.kubernetes.io/component: user-service
+    app.kubernetes.io/part-of: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: svc-user-django
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: svc-user-django
+        app.kubernetes.io/name: svc-user-django
+        app.kubernetes.io/component: user-service
+    spec:
+      initContainers:
+        # Wait for PostgreSQL to be ready
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres 5432; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+        # Create database if it doesn't exist
+        - name: create-database
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              PGPASSWORD=$POSTGRES_PASSWORD psql -h $DATABASE_HOST -U $POSTGRES_USER -tc "SELECT 1 FROM pg_database WHERE datname = 'users'" | grep -q 1 || \
+              PGPASSWORD=$POSTGRES_PASSWORD psql -h $DATABASE_HOST -U $POSTGRES_USER -c "CREATE DATABASE users"
+          env:
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_HOST
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+        # Run Django migrations
+        - name: migrate
+          image: ecommerce/svc-user-django
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              python manage.py makemigrations || true
+              python manage.py migrate
+          env:
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-user-django-config
+                  key: DEBUG
+            - name: DJANGO_SETTINGS_MODULE
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-user-django-config
+                  key: DJANGO_SETTINGS_MODULE
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_HOST
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_PORT
+            - name: DATABASE_NAME
+              value: "users"
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: svc-user-django-secrets
+                  key: SECRET_KEY
+      containers:
+        - name: svc-user-django
+          image: ecommerce/svc-user-django
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+          env:
+            # Django settings
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-user-django-config
+                  key: DEBUG
+            - name: DJANGO_SETTINGS_MODULE
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-user-django-config
+                  key: DJANGO_SETTINGS_MODULE
+            - name: ALLOWED_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-user-django-config
+                  key: ALLOWED_HOSTS
+            # Database
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_HOST
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DATABASE_PORT
+            - name: DATABASE_NAME
+              value: "users"
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: svc-user-django-secrets
+                  key: DATABASE_URL
+            # Redis
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: REDIS_PORT
+            # Secrets
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: svc-user-django-secrets
+                  key: SECRET_KEY
+            # gRPC
+            - name: GRPC_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: svc-user-django-config
+                  key: GRPC_PORT
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health/
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
