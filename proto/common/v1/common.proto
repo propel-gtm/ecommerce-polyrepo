@@ -1,0 +1,310 @@
+// Common types shared across all e-commerce services.
+//
+// This file contains reusable message types for pagination, errors,
+// timestamps, money handling, and other shared patterns.
+
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/ecommerce/proto-schemas/gen/go/common/v1;commonv1";
+option java_package = "com.ecommerce.common.v1";
+option java_multiple_files = true;
+
+import "google/protobuf/timestamp.proto";
+
+// Pagination request parameters.
+message PaginationRequest {
+  // Number of items per page (default: 20, max: 100).
+  int32 page_size = 1;
+
+  // Page token for cursor-based pagination.
+  // Empty string for the first page.
+  string page_token = 2;
+}
+
+// Pagination response metadata.
+message PaginationResponse {
+  // Token for retrieving the next page.
+  // Empty if no more pages exist.
+  string next_page_token = 1;
+
+  // Total number of items across all pages (if available).
+  // May be -1 if total count is not computed.
+  int64 total_count = 2;
+
+  // Whether there are more pages available.
+  bool has_more = 3;
+}
+
+// Monetary amount with currency.
+message Money {
+  // ISO 4217 currency code (e.g., "USD", "EUR", "GBP").
+  string currency_code = 1;
+
+  // Amount in the smallest currency unit (e.g., cents for USD).
+  // For USD $19.99, this would be 1999.
+  int64 amount = 2;
+
+  // Number of decimal places for display.
+  // USD = 2, JPY = 0, BHD = 3.
+  int32 decimal_places = 3;
+}
+
+// Price with optional discount information.
+message Price {
+  // Current selling price.
+  Money current = 1;
+
+  // Original price before discount (if applicable).
+  Money original = 2;
+
+  // Discount percentage (0-100).
+  int32 discount_percent = 3;
+}
+
+// Physical address.
+message Address {
+  // Address line 1 (street address, P.O. box, company name).
+  string line1 = 1;
+
+  // Address line 2 (apartment, suite, unit, building, floor).
+  string line2 = 2;
+
+  // City, district, suburb, town, or village.
+  string city = 3;
+
+  // State, county, province, or region.
+  string state = 4;
+
+  // ZIP or postal code.
+  string postal_code = 5;
+
+  // ISO 3166-1 alpha-2 country code (e.g., "US", "GB", "CA").
+  string country_code = 6;
+}
+
+// Geographic coordinates.
+message GeoLocation {
+  // Latitude in degrees (-90 to 90).
+  double latitude = 1;
+
+  // Longitude in degrees (-180 to 180).
+  double longitude = 2;
+}
+
+// Date without time component.
+message Date {
+  // Year (e.g., 2024).
+  int32 year = 1;
+
+  // Month (1-12).
+  int32 month = 2;
+
+  // Day of month (1-31).
+  int32 day = 3;
+}
+
+// Time range for filtering.
+message TimeRange {
+  // Start of the time range (inclusive).
+  google.protobuf.Timestamp start_time = 1;
+
+  // End of the time range (exclusive).
+  google.protobuf.Timestamp end_time = 2;
+}
+
+// Audit information for tracking changes.
+message AuditInfo {
+  // When the entity was created.
+  google.protobuf.Timestamp created_at = 1;
+
+  // When the entity was last updated.
+  google.protobuf.Timestamp updated_at = 2;
+
+  // ID of the user who created the entity.
+  string created_by = 3;
+
+  // ID of the user who last updated the entity.
+  string updated_by = 4;
+
+  // Version number for optimistic locking.
+  int64 version = 5;
+}
+
+// Sort order direction.
+enum SortOrder {
+  // Unspecified sort order.
+  SORT_ORDER_UNSPECIFIED = 0;
+
+  // Ascending order (A-Z, 0-9, oldest first).
+  SORT_ORDER_ASC = 1;
+
+  // Descending order (Z-A, 9-0, newest first).
+  SORT_ORDER_DESC = 2;
+}
+
+// Sort specification.
+message SortSpec {
+  // Field name to sort by.
+  string field = 1;
+
+  // Sort direction.
+  SortOrder order = 2;
+}
+
+// Error details for structured error responses.
+message ErrorDetail {
+  // Machine-readable error code.
+  string code = 1;
+
+  // Human-readable error message.
+  string message = 2;
+
+  // Field path that caused the error (for validation errors).
+  string field = 3;
+
+  // Additional error metadata.
+  map<string, string> metadata = 4;
+}
+
+// Validation error with multiple field errors.
+message ValidationError {
+  // List of field-level errors.
+  repeated FieldError errors = 1;
+}
+
+// Single field validation error.
+message FieldError {
+  // Field path (e.g., "user.email", "items[0].quantity").
+  string field = 1;
+
+  // Error message describing the validation failure.
+  string message = 2;
+
+  // Validation rule that failed (e.g., "required", "email", "min_length").
+  string rule = 3;
+}
+
+// Resource identifier with type information.
+message ResourceId {
+  // Resource type (e.g., "user", "listing", "order").
+  string type = 1;
+
+  // Unique identifier within the resource type.
+  string id = 2;
+}
+
+// Key-value attribute.
+message Attribute {
+  // Attribute key.
+  string key = 1;
+
+  // Attribute value.
+  string value = 2;
+}
+
+// Image metadata.
+message Image {
+  // Image URL.
+  string url = 1;
+
+  // Alternative text for accessibility.
+  string alt_text = 2;
+
+  // Image width in pixels.
+  int32 width = 3;
+
+  // Image height in pixels.
+  int32 height = 4;
+
+  // Image format (e.g., "jpeg", "png", "webp").
+  string format = 5;
+
+  // File size in bytes.
+  int64 size_bytes = 6;
+}
+
+// File attachment metadata.
+message Attachment {
+  // Unique attachment identifier.
+  string id = 1;
+
+  // Original filename.
+  string filename = 2;
+
+  // MIME type.
+  string content_type = 3;
+
+  // File size in bytes.
+  int64 size_bytes = 4;
+
+  // Download URL.
+  string url = 5;
+
+  // When the attachment was uploaded.
+  google.protobuf.Timestamp uploaded_at = 6;
+}
+
+// Phone number with country code.
+message PhoneNumber {
+  // Country calling code (e.g., "1" for US, "44" for UK).
+  string country_code = 1;
+
+  // National phone number without country code.
+  string national_number = 2;
+
+  // E.164 formatted number (e.g., "+14155551234").
+  string e164 = 3;
+}
+
+// Entity status for soft deletes and lifecycle management.
+enum EntityStatus {
+  // Unspecified status.
+  ENTITY_STATUS_UNSPECIFIED = 0;
+
+  // Entity is active and visible.
+  ENTITY_STATUS_ACTIVE = 1;
+
+  // Entity is inactive but not deleted.
+  ENTITY_STATUS_INACTIVE = 2;
+
+  // Entity is pending approval/activation.
+  ENTITY_STATUS_PENDING = 3;
+
+  // Entity is archived (soft deleted).
+  ENTITY_STATUS_ARCHIVED = 4;
+
+  // Entity is suspended.
+  ENTITY_STATUS_SUSPENDED = 5;
+}
+
+// Health check status.
+enum HealthStatus {
+  // Unknown health status.
+  HEALTH_STATUS_UNSPECIFIED = 0;
+
+  // Service is healthy.
+  HEALTH_STATUS_HEALTHY = 1;
+
+  // Service is degraded but operational.
+  HEALTH_STATUS_DEGRADED = 2;
+
+  // Service is unhealthy.
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+// Service health check response.
+message HealthCheckResponse {
+  // Overall service status.
+  HealthStatus status = 1;
+
+  // Individual component health checks.
+  map<string, HealthStatus> components = 2;
+
+  // Service version.
+  string version = 3;
+
+  // When the health check was performed.
+  google.protobuf.Timestamp checked_at = 4;
+}

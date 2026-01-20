@@ -1,0 +1,59 @@
+# buf.gen.yaml - Code generation configuration
+# https://docs.buf.build/configuration/v1/buf-gen-yaml
+version: v1
+
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/ecommerce/proto-schemas/gen/go
+    except:
+      - buf.build/googleapis/googleapis
+      - buf.build/grpc-ecosystem/grpc-gateway
+  java_multiple_files: true
+  java_package_prefix: com.ecommerce
+  optimize_for: SPEED
+
+plugins:
+  # Go
+  - plugin: buf.build/protocolbuffers/go
+    out: gen/go
+    opt:
+      - paths=source_relative
+
+  - plugin: buf.build/grpc/go
+    out: gen/go
+    opt:
+      - paths=source_relative
+
+  # Python
+  - plugin: buf.build/protocolbuffers/python
+    out: gen/python
+
+  - plugin: buf.build/grpc/python
+    out: gen/python
+
+  # Java
+  - plugin: buf.build/protocolbuffers/java
+    out: gen/java
+
+  - plugin: buf.build/grpc/java
+    out: gen/java
+
+  # Ruby (requires local plugin)
+  # Uncomment if grpc_tools_ruby_protoc is available
+  # - plugin: ruby
+  #   out: gen/ruby
+  # - plugin: grpc-ruby
+  #   out: gen/ruby
+
+  # TypeScript/JavaScript (optional)
+  # - plugin: buf.build/bufbuild/es
+  #   out: gen/ts
+  # - plugin: buf.build/connectrpc/es
+  #   out: gen/ts
+
+  # Documentation
+  - plugin: buf.build/community/pseudomuto-doc
+    out: gen/docs
+    opt:
+      - markdown,docs.md

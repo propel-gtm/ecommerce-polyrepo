@@ -1,0 +1,1145 @@
+// Inventory service for managing stock levels, reservations, and tracking.
+//
+// This service handles real-time inventory management, stock reservations
+// for orders, warehouse tracking, and inventory analytics.
+
+syntax = "proto3";
+
+package inventory.v1;
+
+option go_package = "github.com/ecommerce/proto-schemas/gen/go/inventory/v1;inventoryv1";
+option java_package = "com.ecommerce.inventory.v1";
+option java_multiple_files = true;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "proto/common/v1/common.proto";
+
+// InventoryService provides inventory management operations.
+service InventoryService {
+  // GetStock retrieves stock information for a product.
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+
+  // GetStockBySku retrieves stock information by SKU.
+  rpc GetStockBySku(GetStockBySkuRequest) returns (GetStockBySkuResponse);
+
+  // BatchGetStock retrieves stock for multiple products.
+  rpc BatchGetStock(BatchGetStockRequest) returns (BatchGetStockResponse);
+
+  // UpdateStock updates stock levels for a product.
+  rpc UpdateStock(UpdateStockRequest) returns (UpdateStockResponse);
+
+  // AdjustStock adjusts stock by a delta amount.
+  rpc AdjustStock(AdjustStockRequest) returns (AdjustStockResponse);
+
+  // SetStock sets absolute stock levels.
+  rpc SetStock(SetStockRequest) returns (SetStockResponse);
+
+  // ReserveStock reserves stock for an order.
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+
+  // ReleaseReservation releases a stock reservation.
+  rpc ReleaseReservation(ReleaseReservationRequest) returns (ReleaseReservationResponse);
+
+  // ConfirmReservation confirms a reservation (deducts from available).
+  rpc ConfirmReservation(ConfirmReservationRequest) returns (ConfirmReservationResponse);
+
+  // GetReservation retrieves a reservation by ID.
+  rpc GetReservation(GetReservationRequest) returns (GetReservationResponse);
+
+  // ListReservations lists reservations for a product or order.
+  rpc ListReservations(ListReservationsRequest) returns (ListReservationsResponse);
+
+  // CreateWarehouse creates a new warehouse/location.
+  rpc CreateWarehouse(CreateWarehouseRequest) returns (CreateWarehouseResponse);
+
+  // GetWarehouse retrieves warehouse information.
+  rpc GetWarehouse(GetWarehouseRequest) returns (GetWarehouseResponse);
+
+  // UpdateWarehouse updates warehouse information.
+  rpc UpdateWarehouse(UpdateWarehouseRequest) returns (UpdateWarehouseResponse);
+
+  // ListWarehouses lists all warehouses.
+  rpc ListWarehouses(ListWarehousesRequest) returns (ListWarehousesResponse);
+
+  // TransferStock transfers stock between warehouses.
+  rpc TransferStock(TransferStockRequest) returns (TransferStockResponse);
+
+  // GetTransfer retrieves a transfer by ID.
+  rpc GetTransfer(GetTransferRequest) returns (GetTransferResponse);
+
+  // ListTransfers lists stock transfers.
+  rpc ListTransfers(ListTransfersRequest) returns (ListTransfersResponse);
+
+  // GetStockMovements retrieves stock movement history.
+  rpc GetStockMovements(GetStockMovementsRequest) returns (GetStockMovementsResponse);
+
+  // SetLowStockThreshold sets low stock alert threshold.
+  rpc SetLowStockThreshold(SetLowStockThresholdRequest) returns (SetLowStockThresholdResponse);
+
+  // GetLowStockAlerts retrieves products below threshold.
+  rpc GetLowStockAlerts(GetLowStockAlertsRequest) returns (GetLowStockAlertsResponse);
+
+  // GetInventorySummary retrieves inventory analytics summary.
+  rpc GetInventorySummary(GetInventorySummaryRequest) returns (GetInventorySummaryResponse);
+
+  // StreamStockUpdates streams real-time stock updates.
+  rpc StreamStockUpdates(StreamStockUpdatesRequest) returns (stream StockUpdateEvent);
+
+  // HealthCheck returns the service health status.
+  rpc HealthCheck(google.protobuf.Empty) returns (common.v1.HealthCheckResponse);
+}
+
+// Stock level information.
+message StockLevel {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (empty for listings without variants).
+  string variant_id = 2;
+
+  // SKU.
+  string sku = 3;
+
+  // Warehouse ID (empty for aggregate).
+  string warehouse_id = 4;
+
+  // Total quantity in stock.
+  int64 quantity = 5;
+
+  // Quantity reserved for orders.
+  int64 reserved = 6;
+
+  // Available quantity (quantity - reserved).
+  int64 available = 7;
+
+  // Quantity on order from supplier.
+  int64 on_order = 8;
+
+  // Low stock threshold.
+  int64 low_stock_threshold = 9;
+
+  // Whether stock is below threshold.
+  bool is_low_stock = 10;
+
+  // Whether item is in stock.
+  bool in_stock = 11;
+
+  // Stock status.
+  StockStatus status = 12;
+
+  // Last stock update timestamp.
+  google.protobuf.Timestamp updated_at = 13;
+
+  // When stock was last counted/verified.
+  google.protobuf.Timestamp last_counted_at = 14;
+}
+
+// Stock status.
+enum StockStatus {
+  // Unspecified status.
+  STOCK_STATUS_UNSPECIFIED = 0;
+
+  // In stock and available.
+  STOCK_STATUS_IN_STOCK = 1;
+
+  // Low stock (below threshold).
+  STOCK_STATUS_LOW_STOCK = 2;
+
+  // Out of stock.
+  STOCK_STATUS_OUT_OF_STOCK = 3;
+
+  // Discontinued.
+  STOCK_STATUS_DISCONTINUED = 4;
+
+  // Pre-order available.
+  STOCK_STATUS_PREORDER = 5;
+
+  // Backorder available.
+  STOCK_STATUS_BACKORDER = 6;
+}
+
+// Stock reservation.
+message Reservation {
+  // Unique reservation ID.
+  string id = 1;
+
+  // Order ID this reservation is for.
+  string order_id = 2;
+
+  // Listing ID.
+  string listing_id = 3;
+
+  // Variant ID.
+  string variant_id = 4;
+
+  // SKU.
+  string sku = 5;
+
+  // Warehouse ID.
+  string warehouse_id = 6;
+
+  // Reserved quantity.
+  int64 quantity = 7;
+
+  // Reservation status.
+  ReservationStatus status = 8;
+
+  // When the reservation expires.
+  google.protobuf.Timestamp expires_at = 9;
+
+  // When the reservation was created.
+  google.protobuf.Timestamp created_at = 10;
+
+  // When the reservation was confirmed.
+  google.protobuf.Timestamp confirmed_at = 11;
+
+  // When the reservation was released.
+  google.protobuf.Timestamp released_at = 12;
+
+  // Notes/reason for reservation.
+  string notes = 13;
+}
+
+// Reservation status.
+enum ReservationStatus {
+  // Unspecified status.
+  RESERVATION_STATUS_UNSPECIFIED = 0;
+
+  // Reservation is pending.
+  RESERVATION_STATUS_PENDING = 1;
+
+  // Reservation is confirmed (order completed).
+  RESERVATION_STATUS_CONFIRMED = 2;
+
+  // Reservation was released.
+  RESERVATION_STATUS_RELEASED = 3;
+
+  // Reservation expired.
+  RESERVATION_STATUS_EXPIRED = 4;
+
+  // Reservation was cancelled.
+  RESERVATION_STATUS_CANCELLED = 5;
+}
+
+// Warehouse/location.
+message Warehouse {
+  // Unique warehouse ID.
+  string id = 1;
+
+  // Warehouse name.
+  string name = 2;
+
+  // Warehouse code (short identifier).
+  string code = 3;
+
+  // Physical address.
+  common.v1.Address address = 4;
+
+  // Geographic coordinates.
+  common.v1.GeoLocation location = 5;
+
+  // Warehouse type.
+  WarehouseType type = 6;
+
+  // Whether warehouse is active.
+  bool is_active = 7;
+
+  // Priority for fulfillment (lower = higher priority).
+  int32 priority = 8;
+
+  // Contact information.
+  WarehouseContact contact = 9;
+
+  // Operating hours.
+  repeated OperatingHours operating_hours = 10;
+
+  // Supported shipping methods.
+  repeated string shipping_method_ids = 11;
+
+  // Capacity information.
+  WarehouseCapacity capacity = 12;
+
+  // Audit information.
+  common.v1.AuditInfo audit = 13;
+}
+
+// Warehouse type.
+enum WarehouseType {
+  // Unspecified type.
+  WAREHOUSE_TYPE_UNSPECIFIED = 0;
+
+  // Standard warehouse.
+  WAREHOUSE_TYPE_WAREHOUSE = 1;
+
+  // Retail store with inventory.
+  WAREHOUSE_TYPE_STORE = 2;
+
+  // Distribution center.
+  WAREHOUSE_TYPE_DISTRIBUTION_CENTER = 3;
+
+  // Third-party fulfillment center.
+  WAREHOUSE_TYPE_FULFILLMENT_CENTER = 4;
+
+  // Supplier/vendor location.
+  WAREHOUSE_TYPE_SUPPLIER = 5;
+}
+
+// Warehouse contact information.
+message WarehouseContact {
+  // Contact name.
+  string name = 1;
+
+  // Email address.
+  string email = 2;
+
+  // Phone number.
+  common.v1.PhoneNumber phone = 3;
+}
+
+// Operating hours.
+message OperatingHours {
+  // Day of week (0 = Sunday, 6 = Saturday).
+  int32 day_of_week = 1;
+
+  // Opening time (HH:MM format).
+  string open_time = 2;
+
+  // Closing time (HH:MM format).
+  string close_time = 3;
+
+  // Whether closed on this day.
+  bool is_closed = 4;
+}
+
+// Warehouse capacity information.
+message WarehouseCapacity {
+  // Total storage capacity (in units).
+  int64 total_capacity = 1;
+
+  // Currently used capacity.
+  int64 used_capacity = 2;
+
+  // Available capacity.
+  int64 available_capacity = 3;
+
+  // Capacity utilization percentage.
+  float utilization_percent = 4;
+}
+
+// Stock transfer between warehouses.
+message StockTransfer {
+  // Unique transfer ID.
+  string id = 1;
+
+  // Source warehouse ID.
+  string source_warehouse_id = 2;
+
+  // Destination warehouse ID.
+  string destination_warehouse_id = 3;
+
+  // Transfer items.
+  repeated TransferItem items = 4;
+
+  // Transfer status.
+  TransferStatus status = 5;
+
+  // When transfer was requested.
+  google.protobuf.Timestamp requested_at = 6;
+
+  // When transfer was shipped.
+  google.protobuf.Timestamp shipped_at = 7;
+
+  // When transfer was received.
+  google.protobuf.Timestamp received_at = 8;
+
+  // Expected arrival date.
+  google.protobuf.Timestamp expected_at = 9;
+
+  // Tracking number (if shipped).
+  string tracking_number = 10;
+
+  // Notes.
+  string notes = 11;
+
+  // User who requested the transfer.
+  string requested_by = 12;
+
+  // Audit information.
+  common.v1.AuditInfo audit = 13;
+}
+
+// Transfer item.
+message TransferItem {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID.
+  string variant_id = 2;
+
+  // SKU.
+  string sku = 3;
+
+  // Requested quantity.
+  int64 quantity_requested = 4;
+
+  // Shipped quantity.
+  int64 quantity_shipped = 5;
+
+  // Received quantity.
+  int64 quantity_received = 6;
+}
+
+// Transfer status.
+enum TransferStatus {
+  // Unspecified status.
+  TRANSFER_STATUS_UNSPECIFIED = 0;
+
+  // Transfer requested.
+  TRANSFER_STATUS_REQUESTED = 1;
+
+  // Transfer approved.
+  TRANSFER_STATUS_APPROVED = 2;
+
+  // Transfer in progress (shipped).
+  TRANSFER_STATUS_IN_TRANSIT = 3;
+
+  // Transfer received.
+  TRANSFER_STATUS_RECEIVED = 4;
+
+  // Transfer cancelled.
+  TRANSFER_STATUS_CANCELLED = 5;
+}
+
+// Stock movement record.
+message StockMovement {
+  // Unique movement ID.
+  string id = 1;
+
+  // Listing ID.
+  string listing_id = 2;
+
+  // Variant ID.
+  string variant_id = 3;
+
+  // SKU.
+  string sku = 4;
+
+  // Warehouse ID.
+  string warehouse_id = 5;
+
+  // Movement type.
+  MovementType type = 6;
+
+  // Quantity changed (positive or negative).
+  int64 quantity = 7;
+
+  // Stock level before movement.
+  int64 quantity_before = 8;
+
+  // Stock level after movement.
+  int64 quantity_after = 9;
+
+  // Reference ID (order ID, transfer ID, etc.).
+  string reference_id = 10;
+
+  // Reference type.
+  string reference_type = 11;
+
+  // Reason for movement.
+  string reason = 12;
+
+  // Notes.
+  string notes = 13;
+
+  // When the movement occurred.
+  google.protobuf.Timestamp created_at = 14;
+
+  // User who performed the movement.
+  string created_by = 15;
+}
+
+// Stock movement type.
+enum MovementType {
+  // Unspecified movement type.
+  MOVEMENT_TYPE_UNSPECIFIED = 0;
+
+  // Stock received from supplier.
+  MOVEMENT_TYPE_RECEIVED = 1;
+
+  // Stock sold (order fulfilled).
+  MOVEMENT_TYPE_SOLD = 2;
+
+  // Stock returned from customer.
+  MOVEMENT_TYPE_RETURNED = 3;
+
+  // Stock transferred out.
+  MOVEMENT_TYPE_TRANSFER_OUT = 4;
+
+  // Stock transferred in.
+  MOVEMENT_TYPE_TRANSFER_IN = 5;
+
+  // Stock adjustment (count correction).
+  MOVEMENT_TYPE_ADJUSTMENT = 6;
+
+  // Stock damaged/written off.
+  MOVEMENT_TYPE_DAMAGED = 7;
+
+  // Stock reserved.
+  MOVEMENT_TYPE_RESERVED = 8;
+
+  // Stock unreserved.
+  MOVEMENT_TYPE_UNRESERVED = 9;
+
+  // Initial stock setup.
+  MOVEMENT_TYPE_INITIAL = 10;
+}
+
+// Request to get stock.
+message GetStockRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (optional).
+  string variant_id = 2;
+
+  // Warehouse ID (optional, for specific warehouse).
+  string warehouse_id = 3;
+
+  // Include all warehouse breakdown.
+  bool include_warehouses = 4;
+}
+
+// Response for getting stock.
+message GetStockResponse {
+  // Aggregate stock level.
+  StockLevel stock = 1;
+
+  // Per-warehouse stock levels (if requested).
+  repeated StockLevel warehouse_stocks = 2;
+}
+
+// Request to get stock by SKU.
+message GetStockBySkuRequest {
+  // SKU to look up.
+  string sku = 1;
+
+  // Warehouse ID (optional).
+  string warehouse_id = 2;
+
+  // Include all warehouse breakdown.
+  bool include_warehouses = 3;
+}
+
+// Response for getting stock by SKU.
+message GetStockBySkuResponse {
+  // Stock level.
+  StockLevel stock = 1;
+
+  // Per-warehouse stock levels (if requested).
+  repeated StockLevel warehouse_stocks = 2;
+}
+
+// Request to batch get stock.
+message BatchGetStockRequest {
+  // Stock items to retrieve.
+  repeated StockQuery queries = 1;
+
+  // Include warehouse breakdown.
+  bool include_warehouses = 2;
+}
+
+// Stock query item.
+message StockQuery {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (optional).
+  string variant_id = 2;
+}
+
+// Response for batch get stock.
+message BatchGetStockResponse {
+  // Stock levels.
+  repeated StockLevel stocks = 1;
+
+  // Per-warehouse stocks (if requested).
+  map<string, WarehouseStockList> warehouse_stocks = 2;
+}
+
+// List of warehouse stocks.
+message WarehouseStockList {
+  // Warehouse stock levels.
+  repeated StockLevel stocks = 1;
+}
+
+// Request to update stock.
+message UpdateStockRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (optional).
+  string variant_id = 2;
+
+  // Warehouse ID.
+  string warehouse_id = 3;
+
+  // Stock level to update.
+  StockLevel stock = 4;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 5;
+}
+
+// Response for updating stock.
+message UpdateStockResponse {
+  // Updated stock level.
+  StockLevel stock = 1;
+}
+
+// Request to adjust stock.
+message AdjustStockRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (optional).
+  string variant_id = 2;
+
+  // Warehouse ID.
+  string warehouse_id = 3;
+
+  // Quantity to adjust (positive or negative).
+  int64 quantity_delta = 4;
+
+  // Reason for adjustment.
+  string reason = 5;
+
+  // Reference ID (e.g., count ID).
+  string reference_id = 6;
+}
+
+// Response for adjusting stock.
+message AdjustStockResponse {
+  // Updated stock level.
+  StockLevel stock = 1;
+
+  // Stock movement record.
+  StockMovement movement = 2;
+}
+
+// Request to set absolute stock level.
+message SetStockRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (optional).
+  string variant_id = 2;
+
+  // Warehouse ID.
+  string warehouse_id = 3;
+
+  // Absolute quantity to set.
+  int64 quantity = 4;
+
+  // Reason for setting.
+  string reason = 5;
+}
+
+// Response for setting stock.
+message SetStockResponse {
+  // Updated stock level.
+  StockLevel stock = 1;
+
+  // Stock movement record.
+  StockMovement movement = 2;
+}
+
+// Request to reserve stock.
+message ReserveStockRequest {
+  // Order ID to reserve for.
+  string order_id = 1;
+
+  // Items to reserve.
+  repeated ReservationItem items = 2;
+
+  // Reservation expiration duration in seconds.
+  int64 expiration_seconds = 3;
+
+  // Preferred warehouse ID (optional).
+  string preferred_warehouse_id = 4;
+}
+
+// Item to reserve.
+message ReservationItem {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (optional).
+  string variant_id = 2;
+
+  // Quantity to reserve.
+  int64 quantity = 3;
+}
+
+// Response for reserving stock.
+message ReserveStockResponse {
+  // Created reservations.
+  repeated Reservation reservations = 1;
+
+  // Whether all items were fully reserved.
+  bool fully_reserved = 2;
+
+  // Items that could not be reserved.
+  repeated ReservationFailure failures = 3;
+}
+
+// Reservation failure.
+message ReservationFailure {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID.
+  string variant_id = 2;
+
+  // Requested quantity.
+  int64 requested = 3;
+
+  // Available quantity.
+  int64 available = 4;
+
+  // Failure reason.
+  string reason = 5;
+}
+
+// Request to release a reservation.
+message ReleaseReservationRequest {
+  // Reservation ID.
+  string reservation_id = 1;
+
+  // Reason for release.
+  string reason = 2;
+}
+
+// Response for releasing a reservation.
+message ReleaseReservationResponse {
+  // Updated reservation.
+  Reservation reservation = 1;
+}
+
+// Request to confirm a reservation.
+message ConfirmReservationRequest {
+  // Reservation ID.
+  string reservation_id = 1;
+}
+
+// Response for confirming a reservation.
+message ConfirmReservationResponse {
+  // Updated reservation.
+  Reservation reservation = 1;
+
+  // Stock movement record.
+  StockMovement movement = 2;
+}
+
+// Request to get a reservation.
+message GetReservationRequest {
+  // Reservation ID.
+  string reservation_id = 1;
+}
+
+// Response for getting a reservation.
+message GetReservationResponse {
+  // Reservation.
+  Reservation reservation = 1;
+}
+
+// Request to list reservations.
+message ListReservationsRequest {
+  // Filter by order ID.
+  string order_id = 1;
+
+  // Filter by listing ID.
+  string listing_id = 2;
+
+  // Filter by warehouse ID.
+  string warehouse_id = 3;
+
+  // Filter by status.
+  repeated ReservationStatus statuses = 4;
+
+  // Pagination.
+  common.v1.PaginationRequest pagination = 5;
+}
+
+// Response for listing reservations.
+message ListReservationsResponse {
+  // Reservations.
+  repeated Reservation reservations = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Request to create a warehouse.
+message CreateWarehouseRequest {
+  // Warehouse to create.
+  Warehouse warehouse = 1;
+}
+
+// Response for creating a warehouse.
+message CreateWarehouseResponse {
+  // Created warehouse.
+  Warehouse warehouse = 1;
+}
+
+// Request to get a warehouse.
+message GetWarehouseRequest {
+  // Warehouse ID.
+  string warehouse_id = 1;
+
+  // Include capacity information.
+  bool include_capacity = 2;
+}
+
+// Response for getting a warehouse.
+message GetWarehouseResponse {
+  // Warehouse.
+  Warehouse warehouse = 1;
+}
+
+// Request to update a warehouse.
+message UpdateWarehouseRequest {
+  // Warehouse ID.
+  string warehouse_id = 1;
+
+  // Updated warehouse.
+  Warehouse warehouse = 2;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Response for updating a warehouse.
+message UpdateWarehouseResponse {
+  // Updated warehouse.
+  Warehouse warehouse = 1;
+}
+
+// Request to list warehouses.
+message ListWarehousesRequest {
+  // Filter by active status.
+  bool active_only = 1;
+
+  // Filter by type.
+  repeated WarehouseType types = 2;
+
+  // Pagination.
+  common.v1.PaginationRequest pagination = 3;
+}
+
+// Response for listing warehouses.
+message ListWarehousesResponse {
+  // Warehouses.
+  repeated Warehouse warehouses = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Request to transfer stock.
+message TransferStockRequest {
+  // Source warehouse ID.
+  string source_warehouse_id = 1;
+
+  // Destination warehouse ID.
+  string destination_warehouse_id = 2;
+
+  // Items to transfer.
+  repeated TransferItem items = 3;
+
+  // Expected arrival date.
+  google.protobuf.Timestamp expected_at = 4;
+
+  // Notes.
+  string notes = 5;
+}
+
+// Response for transferring stock.
+message TransferStockResponse {
+  // Created transfer.
+  StockTransfer transfer = 1;
+}
+
+// Request to get a transfer.
+message GetTransferRequest {
+  // Transfer ID.
+  string transfer_id = 1;
+}
+
+// Response for getting a transfer.
+message GetTransferResponse {
+  // Transfer.
+  StockTransfer transfer = 1;
+}
+
+// Request to list transfers.
+message ListTransfersRequest {
+  // Filter by source warehouse.
+  string source_warehouse_id = 1;
+
+  // Filter by destination warehouse.
+  string destination_warehouse_id = 2;
+
+  // Filter by status.
+  repeated TransferStatus statuses = 3;
+
+  // Time range filter.
+  common.v1.TimeRange time_range = 4;
+
+  // Pagination.
+  common.v1.PaginationRequest pagination = 5;
+}
+
+// Response for listing transfers.
+message ListTransfersResponse {
+  // Transfers.
+  repeated StockTransfer transfers = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Request to get stock movements.
+message GetStockMovementsRequest {
+  // Filter by listing ID.
+  string listing_id = 1;
+
+  // Filter by variant ID.
+  string variant_id = 2;
+
+  // Filter by warehouse ID.
+  string warehouse_id = 3;
+
+  // Filter by movement types.
+  repeated MovementType types = 4;
+
+  // Time range filter.
+  common.v1.TimeRange time_range = 5;
+
+  // Pagination.
+  common.v1.PaginationRequest pagination = 6;
+}
+
+// Response for getting stock movements.
+message GetStockMovementsResponse {
+  // Stock movements.
+  repeated StockMovement movements = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Request to set low stock threshold.
+message SetLowStockThresholdRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID (optional).
+  string variant_id = 2;
+
+  // Warehouse ID (optional, for per-warehouse threshold).
+  string warehouse_id = 3;
+
+  // Threshold quantity.
+  int64 threshold = 4;
+}
+
+// Response for setting low stock threshold.
+message SetLowStockThresholdResponse {
+  // Updated stock level.
+  StockLevel stock = 1;
+}
+
+// Request to get low stock alerts.
+message GetLowStockAlertsRequest {
+  // Filter by warehouse ID.
+  string warehouse_id = 1;
+
+  // Filter by seller ID.
+  string seller_id = 2;
+
+  // Include out of stock items.
+  bool include_out_of_stock = 3;
+
+  // Pagination.
+  common.v1.PaginationRequest pagination = 4;
+}
+
+// Response for getting low stock alerts.
+message GetLowStockAlertsResponse {
+  // Low stock items.
+  repeated LowStockAlert alerts = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Low stock alert.
+message LowStockAlert {
+  // Stock level.
+  StockLevel stock = 1;
+
+  // Listing title (for display).
+  string listing_title = 2;
+
+  // Days until stockout (estimated).
+  int32 days_until_stockout = 3;
+
+  // Average daily sales.
+  float avg_daily_sales = 4;
+
+  // Suggested reorder quantity.
+  int64 suggested_reorder_quantity = 5;
+}
+
+// Request to get inventory summary.
+message GetInventorySummaryRequest {
+  // Filter by warehouse ID.
+  string warehouse_id = 1;
+
+  // Filter by seller ID.
+  string seller_id = 2;
+
+  // Time range for analytics.
+  common.v1.TimeRange time_range = 3;
+}
+
+// Response for getting inventory summary.
+message GetInventorySummaryResponse {
+  // Summary statistics.
+  InventorySummary summary = 1;
+}
+
+// Inventory summary statistics.
+message InventorySummary {
+  // Total SKUs.
+  int64 total_skus = 1;
+
+  // Total units in stock.
+  int64 total_units = 2;
+
+  // Total value of inventory.
+  common.v1.Money total_value = 3;
+
+  // SKUs in stock.
+  int64 in_stock_skus = 4;
+
+  // SKUs with low stock.
+  int64 low_stock_skus = 5;
+
+  // SKUs out of stock.
+  int64 out_of_stock_skus = 6;
+
+  // Reserved units.
+  int64 reserved_units = 7;
+
+  // Average inventory turnover rate.
+  float turnover_rate = 8;
+
+  // Inventory by warehouse.
+  repeated WarehouseInventorySummary warehouse_summaries = 9;
+
+  // Top selling products.
+  repeated TopProduct top_selling = 10;
+
+  // Slowest moving products.
+  repeated TopProduct slow_moving = 11;
+}
+
+// Per-warehouse inventory summary.
+message WarehouseInventorySummary {
+  // Warehouse ID.
+  string warehouse_id = 1;
+
+  // Warehouse name.
+  string warehouse_name = 2;
+
+  // Total SKUs.
+  int64 total_skus = 3;
+
+  // Total units.
+  int64 total_units = 4;
+
+  // Capacity utilization.
+  float utilization_percent = 5;
+}
+
+// Top product in summary.
+message TopProduct {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Listing title.
+  string title = 2;
+
+  // SKU.
+  string sku = 3;
+
+  // Units sold/moved.
+  int64 units = 4;
+
+  // Current stock.
+  int64 current_stock = 5;
+}
+
+// Request to stream stock updates.
+message StreamStockUpdatesRequest {
+  // Filter by listing IDs.
+  repeated string listing_ids = 1;
+
+  // Filter by warehouse IDs.
+  repeated string warehouse_ids = 2;
+
+  // Filter by seller ID.
+  string seller_id = 3;
+}
+
+// Stock update event.
+message StockUpdateEvent {
+  // Event type.
+  StockEventType event_type = 1;
+
+  // Updated stock level.
+  StockLevel stock = 2;
+
+  // Stock movement (if applicable).
+  StockMovement movement = 3;
+
+  // When the event occurred.
+  google.protobuf.Timestamp occurred_at = 4;
+}
+
+// Stock event type.
+enum StockEventType {
+  // Unspecified event type.
+  STOCK_EVENT_TYPE_UNSPECIFIED = 0;
+
+  // Stock level changed.
+  STOCK_EVENT_TYPE_STOCK_CHANGED = 1;
+
+  // Stock reserved.
+  STOCK_EVENT_TYPE_RESERVED = 2;
+
+  // Reservation released.
+  STOCK_EVENT_TYPE_RELEASED = 3;
+
+  // Low stock alert triggered.
+  STOCK_EVENT_TYPE_LOW_STOCK = 4;
+
+  // Out of stock.
+  STOCK_EVENT_TYPE_OUT_OF_STOCK = 5;
+
+  // Back in stock.
+  STOCK_EVENT_TYPE_BACK_IN_STOCK = 6;
+}
