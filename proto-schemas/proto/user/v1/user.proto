@@ -1,0 +1,680 @@
+// User service for managing user accounts, profiles, and authentication.
+//
+// This service handles user registration, profile management, authentication,
+// and user preferences for the e-commerce platform.
+
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/ecommerce/proto-schemas/gen/go/user/v1;userv1";
+option java_package = "com.ecommerce.user.v1";
+option java_multiple_files = true;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "proto/common/v1/common.proto";
+
+// UserService provides user management operations.
+service UserService {
+  // CreateUser registers a new user account.
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+
+  // GetUser retrieves a user by ID.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+
+  // GetUserByEmail retrieves a user by email address.
+  rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
+
+  // UpdateUser updates user information.
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+
+  // DeleteUser permanently deletes a user account.
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+
+  // DeactivateUser deactivates a user account (soft delete).
+  rpc DeactivateUser(DeactivateUserRequest) returns (DeactivateUserResponse);
+
+  // ReactivateUser reactivates a previously deactivated account.
+  rpc ReactivateUser(ReactivateUserRequest) returns (ReactivateUserResponse);
+
+  // ListUsers retrieves a paginated list of users.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+
+  // SearchUsers searches for users by criteria.
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+
+  // UpdateUserProfile updates the user's profile information.
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse);
+
+  // AddUserAddress adds a new address to the user's address book.
+  rpc AddUserAddress(AddUserAddressRequest) returns (AddUserAddressResponse);
+
+  // UpdateUserAddress updates an existing address.
+  rpc UpdateUserAddress(UpdateUserAddressRequest) returns (UpdateUserAddressResponse);
+
+  // DeleteUserAddress removes an address from the user's address book.
+  rpc DeleteUserAddress(DeleteUserAddressRequest) returns (google.protobuf.Empty);
+
+  // ListUserAddresses retrieves all addresses for a user.
+  rpc ListUserAddresses(ListUserAddressesRequest) returns (ListUserAddressesResponse);
+
+  // SetDefaultAddress sets the default shipping/billing address.
+  rpc SetDefaultAddress(SetDefaultAddressRequest) returns (SetDefaultAddressResponse);
+
+  // VerifyEmail sends a verification email to the user.
+  rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+
+  // ConfirmEmailVerification confirms the email verification token.
+  rpc ConfirmEmailVerification(ConfirmEmailVerificationRequest) returns (ConfirmEmailVerificationResponse);
+
+  // ChangePassword changes the user's password.
+  rpc ChangePassword(ChangePasswordRequest) returns (google.protobuf.Empty);
+
+  // RequestPasswordReset initiates a password reset flow.
+  rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
+
+  // ResetPassword completes the password reset with a token.
+  rpc ResetPassword(ResetPasswordRequest) returns (google.protobuf.Empty);
+
+  // GetUserPreferences retrieves user preferences.
+  rpc GetUserPreferences(GetUserPreferencesRequest) returns (GetUserPreferencesResponse);
+
+  // UpdateUserPreferences updates user preferences.
+  rpc UpdateUserPreferences(UpdateUserPreferencesRequest) returns (UpdateUserPreferencesResponse);
+
+  // HealthCheck returns the service health status.
+  rpc HealthCheck(google.protobuf.Empty) returns (common.v1.HealthCheckResponse);
+}
+
+// User account status.
+enum UserStatus {
+  // Unspecified status.
+  USER_STATUS_UNSPECIFIED = 0;
+
+  // User is active and can use the platform.
+  USER_STATUS_ACTIVE = 1;
+
+  // User account is pending email verification.
+  USER_STATUS_PENDING_VERIFICATION = 2;
+
+  // User account is deactivated.
+  USER_STATUS_DEACTIVATED = 3;
+
+  // User account is suspended by admin.
+  USER_STATUS_SUSPENDED = 4;
+
+  // User account is banned.
+  USER_STATUS_BANNED = 5;
+}
+
+// User role within the platform.
+enum UserRole {
+  // Unspecified role.
+  USER_ROLE_UNSPECIFIED = 0;
+
+  // Regular customer.
+  USER_ROLE_CUSTOMER = 1;
+
+  // Seller with listing privileges.
+  USER_ROLE_SELLER = 2;
+
+  // Platform administrator.
+  USER_ROLE_ADMIN = 3;
+
+  // Support staff.
+  USER_ROLE_SUPPORT = 4;
+}
+
+// Address type.
+enum AddressType {
+  // Unspecified address type.
+  ADDRESS_TYPE_UNSPECIFIED = 0;
+
+  // Shipping address.
+  ADDRESS_TYPE_SHIPPING = 1;
+
+  // Billing address.
+  ADDRESS_TYPE_BILLING = 2;
+
+  // Both shipping and billing.
+  ADDRESS_TYPE_BOTH = 3;
+}
+
+// User account information.
+message User {
+  // Unique user identifier.
+  string id = 1;
+
+  // User's email address.
+  string email = 2;
+
+  // User's display name.
+  string display_name = 3;
+
+  // User's first name.
+  string first_name = 4;
+
+  // User's last name.
+  string last_name = 5;
+
+  // User's phone number.
+  common.v1.PhoneNumber phone = 6;
+
+  // Profile picture URL.
+  string avatar_url = 7;
+
+  // User's current status.
+  UserStatus status = 8;
+
+  // User's roles.
+  repeated UserRole roles = 9;
+
+  // Whether the email has been verified.
+  bool email_verified = 10;
+
+  // Whether phone has been verified.
+  bool phone_verified = 11;
+
+  // User's profile information.
+  UserProfile profile = 12;
+
+  // Audit information.
+  common.v1.AuditInfo audit = 13;
+
+  // Last login timestamp.
+  google.protobuf.Timestamp last_login_at = 14;
+}
+
+// Extended user profile information.
+message UserProfile {
+  // Bio or description.
+  string bio = 1;
+
+  // Date of birth.
+  common.v1.Date date_of_birth = 2;
+
+  // Gender (free-form text for inclusivity).
+  string gender = 3;
+
+  // Preferred language (ISO 639-1 code).
+  string language = 4;
+
+  // Preferred currency (ISO 4217 code).
+  string currency = 5;
+
+  // Timezone (IANA timezone identifier).
+  string timezone = 6;
+
+  // Company name (for business accounts).
+  string company = 7;
+
+  // Website URL.
+  string website = 8;
+
+  // Social media links.
+  map<string, string> social_links = 9;
+}
+
+// User address entry.
+message UserAddress {
+  // Unique address identifier.
+  string id = 1;
+
+  // User ID this address belongs to.
+  string user_id = 2;
+
+  // Address label (e.g., "Home", "Work").
+  string label = 3;
+
+  // Full name for this address.
+  string full_name = 4;
+
+  // Phone number for this address.
+  common.v1.PhoneNumber phone = 5;
+
+  // Physical address.
+  common.v1.Address address = 6;
+
+  // Address type.
+  AddressType type = 7;
+
+  // Whether this is the default shipping address.
+  bool is_default_shipping = 8;
+
+  // Whether this is the default billing address.
+  bool is_default_billing = 9;
+
+  // Delivery instructions.
+  string delivery_instructions = 10;
+
+  // Audit information.
+  common.v1.AuditInfo audit = 11;
+}
+
+// User notification preferences.
+message UserPreferences {
+  // Email notification settings.
+  EmailPreferences email = 1;
+
+  // Push notification settings.
+  PushPreferences push = 2;
+
+  // SMS notification settings.
+  SmsPreferences sms = 3;
+
+  // Privacy settings.
+  PrivacyPreferences privacy = 4;
+}
+
+// Email notification preferences.
+message EmailPreferences {
+  // Receive order updates.
+  bool order_updates = 1;
+
+  // Receive promotional emails.
+  bool promotions = 2;
+
+  // Receive newsletter.
+  bool newsletter = 3;
+
+  // Receive seller notifications (for sellers).
+  bool seller_updates = 4;
+
+  // Receive security alerts.
+  bool security_alerts = 5;
+}
+
+// Push notification preferences.
+message PushPreferences {
+  // Push notifications enabled.
+  bool enabled = 1;
+
+  // Order status updates.
+  bool order_updates = 2;
+
+  // Price drop alerts.
+  bool price_alerts = 3;
+
+  // Chat messages.
+  bool messages = 4;
+}
+
+// SMS notification preferences.
+message SmsPreferences {
+  // SMS notifications enabled.
+  bool enabled = 1;
+
+  // Order delivery updates.
+  bool delivery_updates = 2;
+
+  // Two-factor authentication.
+  bool two_factor_auth = 3;
+}
+
+// Privacy preferences.
+message PrivacyPreferences {
+  // Profile is publicly visible.
+  bool public_profile = 1;
+
+  // Show online status.
+  bool show_online_status = 2;
+
+  // Allow search engines to index profile.
+  bool searchable = 3;
+
+  // Share activity with sellers.
+  bool share_activity = 4;
+}
+
+// Request to create a new user.
+message CreateUserRequest {
+  // User's email address.
+  string email = 1;
+
+  // User's password.
+  string password = 2;
+
+  // User's first name.
+  string first_name = 3;
+
+  // User's last name.
+  string last_name = 4;
+
+  // Optional display name.
+  string display_name = 5;
+
+  // Optional phone number.
+  common.v1.PhoneNumber phone = 6;
+
+  // Initial roles to assign.
+  repeated UserRole roles = 7;
+}
+
+// Response for user creation.
+message CreateUserResponse {
+  // Created user.
+  User user = 1;
+}
+
+// Request to get a user by ID.
+message GetUserRequest {
+  // User ID to retrieve.
+  string user_id = 1;
+}
+
+// Response for getting a user.
+message GetUserResponse {
+  // Retrieved user.
+  User user = 1;
+}
+
+// Request to get a user by email.
+message GetUserByEmailRequest {
+  // Email address to look up.
+  string email = 1;
+}
+
+// Response for getting a user by email.
+message GetUserByEmailResponse {
+  // Retrieved user.
+  User user = 1;
+}
+
+// Request to update a user.
+message UpdateUserRequest {
+  // User ID to update.
+  string user_id = 1;
+
+  // Fields to update.
+  User user = 2;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Response for updating a user.
+message UpdateUserResponse {
+  // Updated user.
+  User user = 1;
+}
+
+// Request to delete a user.
+message DeleteUserRequest {
+  // User ID to delete.
+  string user_id = 1;
+
+  // Reason for deletion (for audit).
+  string reason = 2;
+}
+
+// Request to deactivate a user.
+message DeactivateUserRequest {
+  // User ID to deactivate.
+  string user_id = 1;
+
+  // Reason for deactivation.
+  string reason = 2;
+}
+
+// Response for deactivating a user.
+message DeactivateUserResponse {
+  // Deactivated user.
+  User user = 1;
+}
+
+// Request to reactivate a user.
+message ReactivateUserRequest {
+  // User ID to reactivate.
+  string user_id = 1;
+}
+
+// Response for reactivating a user.
+message ReactivateUserResponse {
+  // Reactivated user.
+  User user = 1;
+}
+
+// Request to list users.
+message ListUsersRequest {
+  // Pagination parameters.
+  common.v1.PaginationRequest pagination = 1;
+
+  // Filter by status.
+  repeated UserStatus statuses = 2;
+
+  // Filter by roles.
+  repeated UserRole roles = 3;
+
+  // Sort specification.
+  common.v1.SortSpec sort = 4;
+}
+
+// Response for listing users.
+message ListUsersResponse {
+  // List of users.
+  repeated User users = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Request to search users.
+message SearchUsersRequest {
+  // Search query (searches email, name, display name).
+  string query = 1;
+
+  // Pagination parameters.
+  common.v1.PaginationRequest pagination = 2;
+
+  // Filter by status.
+  repeated UserStatus statuses = 3;
+
+  // Filter by roles.
+  repeated UserRole roles = 4;
+
+  // Filter by creation date range.
+  common.v1.TimeRange created_at = 5;
+}
+
+// Response for searching users.
+message SearchUsersResponse {
+  // List of matching users.
+  repeated User users = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Request to update user profile.
+message UpdateUserProfileRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Profile to update.
+  UserProfile profile = 2;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Response for updating user profile.
+message UpdateUserProfileResponse {
+  // Updated user.
+  User user = 1;
+}
+
+// Request to add a user address.
+message AddUserAddressRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Address to add.
+  UserAddress address = 2;
+}
+
+// Response for adding a user address.
+message AddUserAddressResponse {
+  // Created address.
+  UserAddress address = 1;
+}
+
+// Request to update a user address.
+message UpdateUserAddressRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Address ID.
+  string address_id = 2;
+
+  // Updated address.
+  UserAddress address = 3;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+// Response for updating a user address.
+message UpdateUserAddressResponse {
+  // Updated address.
+  UserAddress address = 1;
+}
+
+// Request to delete a user address.
+message DeleteUserAddressRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Address ID.
+  string address_id = 2;
+}
+
+// Request to list user addresses.
+message ListUserAddressesRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Filter by address type.
+  AddressType type = 2;
+}
+
+// Response for listing user addresses.
+message ListUserAddressesResponse {
+  // List of addresses.
+  repeated UserAddress addresses = 1;
+}
+
+// Request to set default address.
+message SetDefaultAddressRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Address ID to set as default.
+  string address_id = 2;
+
+  // Address type to set default for.
+  AddressType type = 3;
+}
+
+// Response for setting default address.
+message SetDefaultAddressResponse {
+  // Updated address.
+  UserAddress address = 1;
+}
+
+// Request to verify email.
+message VerifyEmailRequest {
+  // User ID.
+  string user_id = 1;
+}
+
+// Response for email verification request.
+message VerifyEmailResponse {
+  // Whether the verification email was sent.
+  bool sent = 1;
+
+  // Message about the verification.
+  string message = 2;
+}
+
+// Request to confirm email verification.
+message ConfirmEmailVerificationRequest {
+  // Verification token from email.
+  string token = 1;
+}
+
+// Response for confirming email verification.
+message ConfirmEmailVerificationResponse {
+  // Whether verification was successful.
+  bool verified = 1;
+
+  // User ID that was verified.
+  string user_id = 2;
+}
+
+// Request to change password.
+message ChangePasswordRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Current password.
+  string current_password = 2;
+
+  // New password.
+  string new_password = 3;
+}
+
+// Request to initiate password reset.
+message RequestPasswordResetRequest {
+  // Email address.
+  string email = 1;
+}
+
+// Response for password reset request.
+message RequestPasswordResetResponse {
+  // Whether the reset email was sent.
+  bool sent = 1;
+
+  // Message about the reset.
+  string message = 2;
+}
+
+// Request to complete password reset.
+message ResetPasswordRequest {
+  // Reset token from email.
+  string token = 1;
+
+  // New password.
+  string new_password = 2;
+}
+
+// Request to get user preferences.
+message GetUserPreferencesRequest {
+  // User ID.
+  string user_id = 1;
+}
+
+// Response for getting user preferences.
+message GetUserPreferencesResponse {
+  // User preferences.
+  UserPreferences preferences = 1;
+}
+
+// Request to update user preferences.
+message UpdateUserPreferencesRequest {
+  // User ID.
+  string user_id = 1;
+
+  // Preferences to update.
+  UserPreferences preferences = 2;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Response for updating user preferences.
+message UpdateUserPreferencesResponse {
+  // Updated preferences.
+  UserPreferences preferences = 1;
+}

@@ -1,0 +1,1101 @@
+// Listing service for managing product listings, categories, and search.
+//
+// This service handles product catalog management, category hierarchies,
+// listing creation, and product search functionality.
+
+syntax = "proto3";
+
+package listing.v1;
+
+option go_package = "github.com/ecommerce/proto-schemas/gen/go/listing/v1;listingv1";
+option java_package = "com.ecommerce.listing.v1";
+option java_multiple_files = true;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "proto/common/v1/common.proto";
+
+// ListingService provides product listing management operations.
+service ListingService {
+  // CreateListing creates a new product listing.
+  rpc CreateListing(CreateListingRequest) returns (CreateListingResponse);
+
+  // GetListing retrieves a listing by ID.
+  rpc GetListing(GetListingRequest) returns (GetListingResponse);
+
+  // GetListingBySku retrieves a listing by SKU.
+  rpc GetListingBySku(GetListingBySkuRequest) returns (GetListingBySkuResponse);
+
+  // UpdateListing updates an existing listing.
+  rpc UpdateListing(UpdateListingRequest) returns (UpdateListingResponse);
+
+  // DeleteListing permanently deletes a listing.
+  rpc DeleteListing(DeleteListingRequest) returns (google.protobuf.Empty);
+
+  // ArchiveListing archives a listing (soft delete).
+  rpc ArchiveListing(ArchiveListingRequest) returns (ArchiveListingResponse);
+
+  // PublishListing makes a draft listing publicly visible.
+  rpc PublishListing(PublishListingRequest) returns (PublishListingResponse);
+
+  // UnpublishListing removes a listing from public visibility.
+  rpc UnpublishListing(UnpublishListingRequest) returns (UnpublishListingResponse);
+
+  // ListListings retrieves a paginated list of listings.
+  rpc ListListings(ListListingsRequest) returns (ListListingsResponse);
+
+  // ListSellerListings retrieves listings for a specific seller.
+  rpc ListSellerListings(ListSellerListingsRequest) returns (ListSellerListingsResponse);
+
+  // SearchListings searches for listings by various criteria.
+  rpc SearchListings(SearchListingsRequest) returns (SearchListingsResponse);
+
+  // GetListingsByIds retrieves multiple listings by their IDs.
+  rpc GetListingsByIds(GetListingsByIdsRequest) returns (GetListingsByIdsResponse);
+
+  // CreateCategory creates a new category.
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse);
+
+  // GetCategory retrieves a category by ID.
+  rpc GetCategory(GetCategoryRequest) returns (GetCategoryResponse);
+
+  // UpdateCategory updates an existing category.
+  rpc UpdateCategory(UpdateCategoryRequest) returns (UpdateCategoryResponse);
+
+  // DeleteCategory deletes a category.
+  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty);
+
+  // ListCategories retrieves all categories.
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+
+  // GetCategoryTree retrieves the full category hierarchy.
+  rpc GetCategoryTree(GetCategoryTreeRequest) returns (GetCategoryTreeResponse);
+
+  // AddListingImage adds an image to a listing.
+  rpc AddListingImage(AddListingImageRequest) returns (AddListingImageResponse);
+
+  // RemoveListingImage removes an image from a listing.
+  rpc RemoveListingImage(RemoveListingImageRequest) returns (google.protobuf.Empty);
+
+  // ReorderListingImages reorders images for a listing.
+  rpc ReorderListingImages(ReorderListingImagesRequest) returns (ReorderListingImagesResponse);
+
+  // CreateVariant creates a product variant.
+  rpc CreateVariant(CreateVariantRequest) returns (CreateVariantResponse);
+
+  // UpdateVariant updates a product variant.
+  rpc UpdateVariant(UpdateVariantRequest) returns (UpdateVariantResponse);
+
+  // DeleteVariant deletes a product variant.
+  rpc DeleteVariant(DeleteVariantRequest) returns (google.protobuf.Empty);
+
+  // GetFeaturedListings retrieves featured listings.
+  rpc GetFeaturedListings(GetFeaturedListingsRequest) returns (GetFeaturedListingsResponse);
+
+  // GetRecommendedListings retrieves personalized recommendations.
+  rpc GetRecommendedListings(GetRecommendedListingsRequest) returns (GetRecommendedListingsResponse);
+
+  // HealthCheck returns the service health status.
+  rpc HealthCheck(google.protobuf.Empty) returns (common.v1.HealthCheckResponse);
+}
+
+// Listing status.
+enum ListingStatus {
+  // Unspecified status.
+  LISTING_STATUS_UNSPECIFIED = 0;
+
+  // Listing is a draft, not yet published.
+  LISTING_STATUS_DRAFT = 1;
+
+  // Listing is pending review.
+  LISTING_STATUS_PENDING_REVIEW = 2;
+
+  // Listing is active and visible.
+  LISTING_STATUS_ACTIVE = 3;
+
+  // Listing is inactive/paused by seller.
+  LISTING_STATUS_INACTIVE = 4;
+
+  // Listing is sold out.
+  LISTING_STATUS_SOLD_OUT = 5;
+
+  // Listing is archived.
+  LISTING_STATUS_ARCHIVED = 6;
+
+  // Listing is rejected by moderation.
+  LISTING_STATUS_REJECTED = 7;
+
+  // Listing is suspended by admin.
+  LISTING_STATUS_SUSPENDED = 8;
+}
+
+// Listing condition.
+enum ListingCondition {
+  // Unspecified condition.
+  LISTING_CONDITION_UNSPECIFIED = 0;
+
+  // Brand new.
+  LISTING_CONDITION_NEW = 1;
+
+  // Like new, open box.
+  LISTING_CONDITION_LIKE_NEW = 2;
+
+  // Very good condition.
+  LISTING_CONDITION_VERY_GOOD = 3;
+
+  // Good condition.
+  LISTING_CONDITION_GOOD = 4;
+
+  // Acceptable condition.
+  LISTING_CONDITION_ACCEPTABLE = 5;
+
+  // For parts only.
+  LISTING_CONDITION_FOR_PARTS = 6;
+
+  // Refurbished.
+  LISTING_CONDITION_REFURBISHED = 7;
+}
+
+// Product listing.
+message Listing {
+  // Unique listing identifier.
+  string id = 1;
+
+  // Seller's user ID.
+  string seller_id = 2;
+
+  // Stock Keeping Unit.
+  string sku = 3;
+
+  // Listing title.
+  string title = 4;
+
+  // Short description.
+  string short_description = 5;
+
+  // Full description (may contain HTML/markdown).
+  string description = 6;
+
+  // Current status.
+  ListingStatus status = 7;
+
+  // Item condition.
+  ListingCondition condition = 8;
+
+  // Category IDs (can belong to multiple categories).
+  repeated string category_ids = 9;
+
+  // Primary category ID.
+  string primary_category_id = 10;
+
+  // Brand name.
+  string brand = 11;
+
+  // Manufacturer.
+  string manufacturer = 12;
+
+  // Model number.
+  string model = 13;
+
+  // UPC/EAN/ISBN barcode.
+  string barcode = 14;
+
+  // Pricing information.
+  common.v1.Price price = 15;
+
+  // Product images.
+  repeated ListingImage images = 16;
+
+  // Product variants (size, color, etc.).
+  repeated Variant variants = 17;
+
+  // Product attributes (specifications).
+  repeated common.v1.Attribute attributes = 18;
+
+  // Search tags.
+  repeated string tags = 19;
+
+  // Shipping information.
+  ShippingInfo shipping = 20;
+
+  // Return policy.
+  ReturnPolicy return_policy = 21;
+
+  // Listing metrics.
+  ListingMetrics metrics = 22;
+
+  // SEO metadata.
+  SeoMetadata seo = 23;
+
+  // Whether listing is featured.
+  bool is_featured = 24;
+
+  // Featured until timestamp.
+  google.protobuf.Timestamp featured_until = 25;
+
+  // Audit information.
+  common.v1.AuditInfo audit = 26;
+
+  // When the listing was published.
+  google.protobuf.Timestamp published_at = 27;
+}
+
+// Listing image.
+message ListingImage {
+  // Unique image identifier.
+  string id = 1;
+
+  // Image metadata.
+  common.v1.Image image = 2;
+
+  // Display order (0 = primary).
+  int32 position = 3;
+
+  // Variant IDs this image is associated with.
+  repeated string variant_ids = 4;
+}
+
+// Product variant.
+message Variant {
+  // Unique variant identifier.
+  string id = 1;
+
+  // Parent listing ID.
+  string listing_id = 2;
+
+  // Variant SKU.
+  string sku = 3;
+
+  // Variant name (e.g., "Large / Blue").
+  string name = 4;
+
+  // Variant options.
+  repeated VariantOption options = 5;
+
+  // Variant-specific price (overrides listing price).
+  common.v1.Price price = 6;
+
+  // Variant-specific images.
+  repeated string image_ids = 7;
+
+  // Whether variant is available.
+  bool is_available = 8;
+
+  // Variant weight in grams.
+  int32 weight_grams = 9;
+
+  // Variant dimensions.
+  Dimensions dimensions = 10;
+
+  // Barcode for this variant.
+  string barcode = 11;
+}
+
+// Variant option (e.g., size, color).
+message VariantOption {
+  // Option name (e.g., "Size", "Color").
+  string name = 1;
+
+  // Option value (e.g., "Large", "Blue").
+  string value = 2;
+}
+
+// Product dimensions.
+message Dimensions {
+  // Length in centimeters.
+  float length_cm = 1;
+
+  // Width in centimeters.
+  float width_cm = 2;
+
+  // Height in centimeters.
+  float height_cm = 3;
+}
+
+// Shipping information.
+message ShippingInfo {
+  // Weight in grams.
+  int32 weight_grams = 1;
+
+  // Package dimensions.
+  Dimensions dimensions = 2;
+
+  // Ships from location.
+  common.v1.Address ships_from = 3;
+
+  // Shipping methods available.
+  repeated ShippingMethod methods = 4;
+
+  // Free shipping threshold.
+  common.v1.Money free_shipping_threshold = 5;
+
+  // Handling time in business days.
+  int32 handling_days = 6;
+}
+
+// Shipping method.
+message ShippingMethod {
+  // Method identifier.
+  string id = 1;
+
+  // Display name.
+  string name = 2;
+
+  // Carrier name.
+  string carrier = 3;
+
+  // Estimated delivery days range.
+  int32 min_days = 4;
+  int32 max_days = 5;
+
+  // Shipping cost.
+  common.v1.Money cost = 6;
+}
+
+// Return policy.
+message ReturnPolicy {
+  // Whether returns are accepted.
+  bool accepts_returns = 1;
+
+  // Return window in days.
+  int32 return_days = 2;
+
+  // Who pays return shipping.
+  string return_shipping_paid_by = 3;
+
+  // Restocking fee percentage.
+  int32 restocking_fee_percent = 4;
+
+  // Return policy description.
+  string description = 5;
+}
+
+// Listing metrics.
+message ListingMetrics {
+  // Total views.
+  int64 view_count = 1;
+
+  // Unique viewers.
+  int64 unique_viewers = 2;
+
+  // Times added to wishlist.
+  int64 wishlist_count = 3;
+
+  // Times added to cart.
+  int64 cart_count = 4;
+
+  // Total orders.
+  int64 order_count = 5;
+
+  // Average rating (1-5).
+  float average_rating = 6;
+
+  // Number of reviews.
+  int64 review_count = 7;
+
+  // Conversion rate.
+  float conversion_rate = 8;
+}
+
+// SEO metadata.
+message SeoMetadata {
+  // URL slug.
+  string slug = 1;
+
+  // Meta title.
+  string meta_title = 2;
+
+  // Meta description.
+  string meta_description = 3;
+
+  // Canonical URL.
+  string canonical_url = 4;
+
+  // Structured data (JSON-LD).
+  string structured_data = 5;
+}
+
+// Product category.
+message Category {
+  // Unique category identifier.
+  string id = 1;
+
+  // Parent category ID (empty for root categories).
+  string parent_id = 2;
+
+  // Category name.
+  string name = 3;
+
+  // Category description.
+  string description = 4;
+
+  // URL slug.
+  string slug = 5;
+
+  // Category image.
+  common.v1.Image image = 6;
+
+  // Display order.
+  int32 position = 7;
+
+  // Whether category is active.
+  bool is_active = 8;
+
+  // Category level in hierarchy (0 = root).
+  int32 level = 9;
+
+  // Full path (e.g., "Electronics > Phones > Smartphones").
+  string path = 10;
+
+  // Number of listings in this category.
+  int64 listing_count = 11;
+
+  // Category-specific attributes template.
+  repeated AttributeTemplate attribute_templates = 12;
+
+  // Audit information.
+  common.v1.AuditInfo audit = 13;
+}
+
+// Category tree node with children.
+message CategoryNode {
+  // Category information.
+  Category category = 1;
+
+  // Child categories.
+  repeated CategoryNode children = 2;
+}
+
+// Attribute template for category-specific attributes.
+message AttributeTemplate {
+  // Attribute name.
+  string name = 1;
+
+  // Whether this attribute is required.
+  bool required = 2;
+
+  // Attribute type (text, number, select, etc.).
+  string type = 3;
+
+  // Predefined options for select type.
+  repeated string options = 4;
+
+  // Unit of measurement (if applicable).
+  string unit = 5;
+}
+
+// Search filters.
+message SearchFilters {
+  // Filter by category IDs.
+  repeated string category_ids = 1;
+
+  // Filter by seller IDs.
+  repeated string seller_ids = 2;
+
+  // Filter by status.
+  repeated ListingStatus statuses = 3;
+
+  // Filter by condition.
+  repeated ListingCondition conditions = 4;
+
+  // Price range filter.
+  PriceRange price_range = 5;
+
+  // Filter by brand.
+  repeated string brands = 6;
+
+  // Filter by rating minimum.
+  float min_rating = 7;
+
+  // Filter by attributes.
+  repeated AttributeFilter attribute_filters = 8;
+
+  // Free shipping only.
+  bool free_shipping_only = 9;
+
+  // In stock only.
+  bool in_stock_only = 10;
+
+  // Location filter.
+  LocationFilter location = 11;
+}
+
+// Price range filter.
+message PriceRange {
+  // Minimum price.
+  common.v1.Money min = 1;
+
+  // Maximum price.
+  common.v1.Money max = 2;
+}
+
+// Attribute filter.
+message AttributeFilter {
+  // Attribute name.
+  string name = 1;
+
+  // Attribute values to match.
+  repeated string values = 2;
+}
+
+// Location filter.
+message LocationFilter {
+  // Country code.
+  string country_code = 1;
+
+  // State/region.
+  string state = 2;
+
+  // Maximum distance in kilometers.
+  int32 max_distance_km = 3;
+
+  // Center point for distance filter.
+  common.v1.GeoLocation center = 4;
+}
+
+// Sort options for listings.
+enum ListingSortBy {
+  // Default relevance sorting.
+  LISTING_SORT_BY_UNSPECIFIED = 0;
+
+  // Sort by relevance (for search).
+  LISTING_SORT_BY_RELEVANCE = 1;
+
+  // Sort by price.
+  LISTING_SORT_BY_PRICE = 2;
+
+  // Sort by creation date.
+  LISTING_SORT_BY_CREATED_AT = 3;
+
+  // Sort by popularity.
+  LISTING_SORT_BY_POPULARITY = 4;
+
+  // Sort by rating.
+  LISTING_SORT_BY_RATING = 5;
+
+  // Sort by number of reviews.
+  LISTING_SORT_BY_REVIEWS = 6;
+
+  // Sort by distance (requires location).
+  LISTING_SORT_BY_DISTANCE = 7;
+}
+
+// Request to create a listing.
+message CreateListingRequest {
+  // Listing to create.
+  Listing listing = 1;
+
+  // Whether to publish immediately.
+  bool publish = 2;
+}
+
+// Response for listing creation.
+message CreateListingResponse {
+  // Created listing.
+  Listing listing = 1;
+}
+
+// Request to get a listing.
+message GetListingRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Include inactive/draft listings (for seller).
+  bool include_inactive = 2;
+}
+
+// Response for getting a listing.
+message GetListingResponse {
+  // Retrieved listing.
+  Listing listing = 1;
+}
+
+// Request to get a listing by SKU.
+message GetListingBySkuRequest {
+  // Seller ID.
+  string seller_id = 1;
+
+  // SKU to look up.
+  string sku = 2;
+}
+
+// Response for getting a listing by SKU.
+message GetListingBySkuResponse {
+  // Retrieved listing.
+  Listing listing = 1;
+}
+
+// Request to update a listing.
+message UpdateListingRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Updated listing.
+  Listing listing = 2;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Response for updating a listing.
+message UpdateListingResponse {
+  // Updated listing.
+  Listing listing = 1;
+}
+
+// Request to delete a listing.
+message DeleteListingRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Reason for deletion.
+  string reason = 2;
+}
+
+// Request to archive a listing.
+message ArchiveListingRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Reason for archiving.
+  string reason = 2;
+}
+
+// Response for archiving a listing.
+message ArchiveListingResponse {
+  // Archived listing.
+  Listing listing = 1;
+}
+
+// Request to publish a listing.
+message PublishListingRequest {
+  // Listing ID.
+  string listing_id = 1;
+}
+
+// Response for publishing a listing.
+message PublishListingResponse {
+  // Published listing.
+  Listing listing = 1;
+}
+
+// Request to unpublish a listing.
+message UnpublishListingRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Reason for unpublishing.
+  string reason = 2;
+}
+
+// Response for unpublishing a listing.
+message UnpublishListingResponse {
+  // Unpublished listing.
+  Listing listing = 1;
+}
+
+// Request to list listings.
+message ListListingsRequest {
+  // Pagination parameters.
+  common.v1.PaginationRequest pagination = 1;
+
+  // Filters.
+  SearchFilters filters = 2;
+
+  // Sort by.
+  ListingSortBy sort_by = 3;
+
+  // Sort order.
+  common.v1.SortOrder sort_order = 4;
+}
+
+// Response for listing listings.
+message ListListingsResponse {
+  // List of listings.
+  repeated Listing listings = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+
+  // Available filter facets.
+  SearchFacets facets = 3;
+}
+
+// Request to list seller's listings.
+message ListSellerListingsRequest {
+  // Seller ID.
+  string seller_id = 1;
+
+  // Pagination parameters.
+  common.v1.PaginationRequest pagination = 2;
+
+  // Filter by status.
+  repeated ListingStatus statuses = 3;
+
+  // Sort by.
+  ListingSortBy sort_by = 4;
+
+  // Sort order.
+  common.v1.SortOrder sort_order = 5;
+}
+
+// Response for listing seller's listings.
+message ListSellerListingsResponse {
+  // List of listings.
+  repeated Listing listings = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+}
+
+// Request to search listings.
+message SearchListingsRequest {
+  // Search query.
+  string query = 1;
+
+  // Pagination parameters.
+  common.v1.PaginationRequest pagination = 2;
+
+  // Filters.
+  SearchFilters filters = 3;
+
+  // Sort by.
+  ListingSortBy sort_by = 4;
+
+  // Sort order.
+  common.v1.SortOrder sort_order = 5;
+
+  // Include facets in response.
+  bool include_facets = 6;
+}
+
+// Response for searching listings.
+message SearchListingsResponse {
+  // List of matching listings.
+  repeated Listing listings = 1;
+
+  // Pagination metadata.
+  common.v1.PaginationResponse pagination = 2;
+
+  // Search facets.
+  SearchFacets facets = 3;
+
+  // Search suggestions.
+  repeated string suggestions = 4;
+}
+
+// Search facets for filtering.
+message SearchFacets {
+  // Category facets.
+  repeated FacetBucket categories = 1;
+
+  // Brand facets.
+  repeated FacetBucket brands = 2;
+
+  // Condition facets.
+  repeated FacetBucket conditions = 3;
+
+  // Price range facets.
+  repeated PriceFacet price_ranges = 4;
+
+  // Rating facets.
+  repeated FacetBucket ratings = 5;
+
+  // Attribute facets.
+  map<string, FacetGroup> attributes = 6;
+}
+
+// Facet bucket with count.
+message FacetBucket {
+  // Facet value.
+  string value = 1;
+
+  // Number of items.
+  int64 count = 2;
+
+  // Display label.
+  string label = 3;
+}
+
+// Price facet.
+message PriceFacet {
+  // Minimum price.
+  common.v1.Money min = 1;
+
+  // Maximum price.
+  common.v1.Money max = 2;
+
+  // Number of items in range.
+  int64 count = 3;
+
+  // Display label.
+  string label = 4;
+}
+
+// Facet group for attributes.
+message FacetGroup {
+  // Attribute name.
+  string name = 1;
+
+  // Facet buckets.
+  repeated FacetBucket buckets = 2;
+}
+
+// Request to get listings by IDs.
+message GetListingsByIdsRequest {
+  // Listing IDs to retrieve.
+  repeated string listing_ids = 1;
+}
+
+// Response for getting listings by IDs.
+message GetListingsByIdsResponse {
+  // Retrieved listings (in same order as request).
+  repeated Listing listings = 1;
+
+  // IDs that were not found.
+  repeated string not_found_ids = 2;
+}
+
+// Request to create a category.
+message CreateCategoryRequest {
+  // Category to create.
+  Category category = 1;
+}
+
+// Response for creating a category.
+message CreateCategoryResponse {
+  // Created category.
+  Category category = 1;
+}
+
+// Request to get a category.
+message GetCategoryRequest {
+  // Category ID.
+  string category_id = 1;
+
+  // Include listing count.
+  bool include_listing_count = 2;
+}
+
+// Response for getting a category.
+message GetCategoryResponse {
+  // Retrieved category.
+  Category category = 1;
+}
+
+// Request to update a category.
+message UpdateCategoryRequest {
+  // Category ID.
+  string category_id = 1;
+
+  // Updated category.
+  Category category = 2;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Response for updating a category.
+message UpdateCategoryResponse {
+  // Updated category.
+  Category category = 1;
+}
+
+// Request to delete a category.
+message DeleteCategoryRequest {
+  // Category ID.
+  string category_id = 1;
+
+  // Whether to move listings to parent category.
+  bool move_listings_to_parent = 2;
+}
+
+// Request to list categories.
+message ListCategoriesRequest {
+  // Parent category ID (empty for root categories).
+  string parent_id = 1;
+
+  // Include inactive categories.
+  bool include_inactive = 2;
+
+  // Include listing counts.
+  bool include_listing_counts = 3;
+}
+
+// Response for listing categories.
+message ListCategoriesResponse {
+  // List of categories.
+  repeated Category categories = 1;
+}
+
+// Request to get category tree.
+message GetCategoryTreeRequest {
+  // Root category ID (empty for full tree).
+  string root_id = 1;
+
+  // Maximum depth to return.
+  int32 max_depth = 2;
+
+  // Include inactive categories.
+  bool include_inactive = 3;
+
+  // Include listing counts.
+  bool include_listing_counts = 4;
+}
+
+// Response for getting category tree.
+message GetCategoryTreeResponse {
+  // Root nodes of the category tree.
+  repeated CategoryNode roots = 1;
+}
+
+// Request to add listing image.
+message AddListingImageRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Image to add.
+  common.v1.Image image = 2;
+
+  // Position in image list.
+  int32 position = 3;
+
+  // Associated variant IDs.
+  repeated string variant_ids = 4;
+}
+
+// Response for adding listing image.
+message AddListingImageResponse {
+  // Added image.
+  ListingImage image = 1;
+}
+
+// Request to remove listing image.
+message RemoveListingImageRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Image ID to remove.
+  string image_id = 2;
+}
+
+// Request to reorder listing images.
+message ReorderListingImagesRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Image IDs in new order.
+  repeated string image_ids = 2;
+}
+
+// Response for reordering listing images.
+message ReorderListingImagesResponse {
+  // Updated images.
+  repeated ListingImage images = 1;
+}
+
+// Request to create a variant.
+message CreateVariantRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant to create.
+  Variant variant = 2;
+}
+
+// Response for creating a variant.
+message CreateVariantResponse {
+  // Created variant.
+  Variant variant = 1;
+}
+
+// Request to update a variant.
+message UpdateVariantRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID.
+  string variant_id = 2;
+
+  // Updated variant.
+  Variant variant = 3;
+
+  // Field mask specifying which fields to update.
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+// Response for updating a variant.
+message UpdateVariantResponse {
+  // Updated variant.
+  Variant variant = 1;
+}
+
+// Request to delete a variant.
+message DeleteVariantRequest {
+  // Listing ID.
+  string listing_id = 1;
+
+  // Variant ID.
+  string variant_id = 2;
+}
+
+// Request to get featured listings.
+message GetFeaturedListingsRequest {
+  // Maximum number of listings to return.
+  int32 limit = 1;
+
+  // Category ID to filter by.
+  string category_id = 2;
+}
+
+// Response for getting featured listings.
+message GetFeaturedListingsResponse {
+  // Featured listings.
+  repeated Listing listings = 1;
+}
+
+// Request to get recommended listings.
+message GetRecommendedListingsRequest {
+  // User ID for personalization.
+  string user_id = 1;
+
+  // Maximum number of listings.
+  int32 limit = 2;
+
+  // Context listing ID (for "similar items").
+  string context_listing_id = 3;
+
+  // Recommendation type.
+  RecommendationType type = 4;
+}
+
+// Recommendation type.
+enum RecommendationType {
+  // Unspecified recommendation type.
+  RECOMMENDATION_TYPE_UNSPECIFIED = 0;
+
+  // Personalized for user.
+  RECOMMENDATION_TYPE_PERSONALIZED = 1;
+
+  // Similar to a specific item.
+  RECOMMENDATION_TYPE_SIMILAR = 2;
+
+  // Frequently bought together.
+  RECOMMENDATION_TYPE_BOUGHT_TOGETHER = 3;
+
+  // Recently viewed.
+  RECOMMENDATION_TYPE_RECENTLY_VIEWED = 4;
+
+  // Trending items.
+  RECOMMENDATION_TYPE_TRENDING = 5;
+}
+
+// Response for getting recommended listings.
+message GetRecommendedListingsResponse {
+  // Recommended listings.
+  repeated Listing listings = 1;
+
+  // Recommendation explanation (for transparency).
+  string explanation = 2;
+}

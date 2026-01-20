@@ -1,0 +1,55 @@
+# Generated code
+gen/
+
+# Buf lock file (optional - some prefer to commit this)
+# buf.lock
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.pb.go
+*_pb2.py
+*_pb2_grpc.py
+*.class
+*.jar
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.env
+
+# Go
+vendor/
+go.sum
+
+# Java
+target/
+*.log
+
+# Ruby
+*.gem
+.bundle/
+Gemfile.lock
+
+# Node (if using ts-proto or similar)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# OS files
+Thumbs.db
