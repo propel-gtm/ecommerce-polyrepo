@@ -1,0 +1,26 @@
+# Django
+Django>=4.2,<5.0
+djangorestframework>=3.14,<4.0
+djangorestframework-simplejwt>=5.3,<6.0
+
+# gRPC
+grpcio>=1.59,<2.0
+grpcio-tools>=1.59,<2.0
+protobuf>=4.24,<5.0
+
+# Database
+psycopg2-binary>=2.9,<3.0
+
+# Environment
+python-dotenv>=1.0,<2.0
+
+# Security
+django-cors-headers>=4.3,<5.0
+
+# Production server
+gunicorn>=21.0,<22.0
+
+# Development/Testing
+pytest>=7.4,<8.0
+pytest-django>=4.5,<5.0
+coverage>=7.3,<8.0
