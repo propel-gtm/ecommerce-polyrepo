@@ -279,3 +279,44 @@ ps: ## Show all running pods (alias for status)
 	@$(MAKE) status
 
 tail: logs-all ## Tail all logs (alias for logs-all)
+
+list-services: ## List all service URLs and endpoints
+	@MINIKUBE_IP=$$(minikube ip); \
+	echo "====================================================================="; \
+	echo "E-COMMERCE POLYREPO - SERVICE ENDPOINTS"; \
+	echo "====================================================================="; \
+	echo "Minikube IP: $$MINIKUBE_IP"; \
+	echo ""; \
+	echo "FRONTEND:"; \
+	echo "  Next.js App:            http://$$MINIKUBE_IP:30300"; \
+	echo ""; \
+	echo "API GATEWAY (Go/Gin):"; \
+	echo "  REST API:               http://$$MINIKUBE_IP:30080"; \
+	echo "  Health Check:           http://$$MINIKUBE_IP:30080/health"; \
+	echo ""; \
+	echo "USER SERVICE (Django):"; \
+	echo "  REST API:               http://$$MINIKUBE_IP:30801"; \
+	echo "  gRPC:                   $$MINIKUBE_IP:30051"; \
+	echo "  Health Check:           http://$$MINIKUBE_IP:30801/api/health/"; \
+	echo ""; \
+	echo "LISTING SERVICE (Spring Boot):"; \
+	echo "  REST API:               http://$$MINIKUBE_IP:30802"; \
+	echo "  gRPC:                   $$MINIKUBE_IP:30909"; \
+	echo "  Health Check:           http://$$MINIKUBE_IP:30802/actuator/health"; \
+	echo ""; \
+	echo "INVENTORY SERVICE (Rails):"; \
+	echo "  REST API:               http://$$MINIKUBE_IP:30301"; \
+	echo "  gRPC:                   $$MINIKUBE_IP:30052"; \
+	echo "  Health Check:           http://$$MINIKUBE_IP:30301/health"; \
+	echo ""; \
+	echo "POSTGRESQL DATABASE:"; \
+	echo "  Connection:             $$MINIKUBE_IP:30543"; \
+	echo "  Connection String:      postgresql://postgres:postgres@$$MINIKUBE_IP:30543/users"; \
+	echo ""; \
+	echo "====================================================================="; \
+	echo "QUICK TEST:"; \
+	echo "====================================================================="; \
+	echo "curl http://$$MINIKUBE_IP:30080/health              # API Gateway"; \
+	echo "curl http://$$MINIKUBE_IP:30801/api/health/         # User Service"; \
+	echo "curl http://$$MINIKUBE_IP:30802/actuator/health     # Listing Service"; \
+	echo "curl http://$$MINIKUBE_IP:30301/health              # Inventory Service"

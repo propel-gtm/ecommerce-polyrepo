@@ -7,9 +7,6 @@
 [submodule "infra-terraform-eks"]
 	path = infra-terraform-eks
 	url = https://github.com/propel-gtm/infra-terraform-eks.git
-[submodule "local-k8s"]
-	path = local-k8s
-	url = https://github.com/propel-gtm/local-k8s.git
 [submodule "proto-schemas"]
 	path = proto-schemas
 	url = https://github.com/propel-gtm/proto-schemas.git
