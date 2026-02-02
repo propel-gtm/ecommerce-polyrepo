@@ -1,24 +1,24 @@
 [submodule "be-api-gin"]
 	path = be-api-gin
-	url = https://github.com/jasonyuezhang/be-api-gin.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-be-api-gin.git
 [submodule "fe-nextjs"]
 	path = fe-nextjs
-	url = https://github.com/jasonyuezhang/fe-nextjs.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-fe-nextjs.git
 [submodule "infra-terraform-eks"]
 	path = infra-terraform-eks
-	url = https://github.com/jasonyuezhang/infra-terraform-eks.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-infra-terraform-eks.git
 [submodule "local-k8s"]
 	path = local-k8s
-	url = https://github.com/jasonyuezhang/local-k8s.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-local-k8s.git
 [submodule "proto-schemas"]
 	path = proto-schemas
-	url = https://github.com/jasonyuezhang/proto-schemas.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-proto-schemas.git
 [submodule "svc-inventory-rails"]
 	path = svc-inventory-rails
-	url = https://github.com/jasonyuezhang/svc-inventory-rails.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-svc-inventory-rails.git
 [submodule "svc-listing-spring"]
 	path = svc-listing-spring
-	url = https://github.com/jasonyuezhang/svc-listing-spring.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-svc-listing-spring.git
 [submodule "svc-user-django"]
 	path = svc-user-django
-	url = https://github.com/jasonyuezhang/svc-user-django.git
+	url = https://github.com/propel-gtm/ecommerce-polyrepo-svc-user-django.git
